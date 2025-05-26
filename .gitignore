@@ -50,3 +50,13 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+#Folders Debug and Release
+Debug/**
+Release/**
+Drivers/**
+Middlewares/**
+.settings/**
+**/Backup/**
+Core/Inc/stm32u5xx_it.h
+Core/Src/stm32u5xx_it.c
