@@ -1,8 +1,9 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file           : usbh_platform.h
-  * @brief          : Header for usbh_platform.c file.
+  * @file    dma2d.h
+  * @brief   This file contains all the function prototypes for
+  *          the dma2d.c file
   ******************************************************************************
   * @attention
   *
@@ -16,27 +17,36 @@
   ******************************************************************************
   */
 /* USER CODE END Header */
-
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __USBH_PLATFORM_H__
-#define __USBH_PLATFORM_H__
+#ifndef __DMA2D_H__
+#define __DMA2D_H__
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "usb_host.h"
+#include "main.h"
 
-/* USER CODE BEGIN INCLUDE */
+/* USER CODE BEGIN Includes */
 
-/* USER CODE END INCLUDE */
+/* USER CODE END Includes */
 
-void MX_DriverVbusHS(uint8_t state);
+extern DMA2D_HandleTypeDef hdma2d;
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+void MX_DMA2D_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __USBH_PLATFORM_H__ */
+#endif /* __DMA2D_H__ */
 
