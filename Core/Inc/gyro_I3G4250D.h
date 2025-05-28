@@ -61,11 +61,6 @@ typedef enum hp_mode
 }gyroHPMode_t;
 
 
-
-/*Define connection type*/
-#define SPI
-//#define I2C
-
 /*Define enabled interrupt types*/
 #define USER_INT1 DISABLE //Programmable interrupt
 #define DRDY_INT2 DISABLE //Data ready / FIFO interrupt
@@ -102,6 +97,19 @@ typedef enum hp_mode
 #define POW_MODE_SLEEP 1
 #define POW_MODE_DOWN 2
 
+
+typedef struct int_flg
+{
+    /*INT1_SRC (31h)*/
+    uint8_t IntFlag; //Interrupt active. Default value: 0 (0: no interrupt has been generated; 1: one or more interrupts have been generated)
+    uint8_t ZhighFlag; //Z high. Default value: 0 (0: no interrupt, 1: Z high event has occurred)
+    uint8_t ZLowFlag; //Z low. Default value: 0 (0: no interrupt; 1: Z low event has occurred)
+    uint8_t YhighFlag; //Y high. Default value: 0 (0: no interrupt, 1: Y high event has occurred)
+    uint8_t YlowFlag; //Y low. Default value: 0 (0: no interrupt, 1: Y low event has occurred)
+    uint8_t XhighFlag; //X high. Default value: 0 (0: no interrupt, 1: X high event has occurred)
+    uint8_t XlowFlag; //X low. Default value: 0 (0: no interrupt, 1: X low event has occurred)
+}gyroIntFlag_t;
+
 typedef struct int_cfg
 {
     /*CTRL_REG3 (22h)*/
@@ -122,14 +130,6 @@ typedef struct int_cfg
     uint8_t YLIE; //Enables interrupt generation on Y low event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value lower than preset threshold)
     uint8_t XHIE; //Enables interrupt generation on X high event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value higher than preset threshold)
     uint8_t XLIE; //Enables interrupt generation on X low event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value lower than preset threshold)
-    /*INT1_SRC (31h)*/
-    uint8_t IntFlag; //Interrupt active. Default value: 0 (0: no interrupt has been generated; 1: one or more interrupts have been generated)
-    uint8_t Zhigh; //Z high. Default value: 0 (0: no interrupt, 1: Z high event has occurred)
-    uint8_t ZLow; //Z low. Default value: 0 (0: no interrupt; 1: Z low event has occurred)
-    uint8_t Yhigh; //Y high. Default value: 0 (0: no interrupt, 1: Y high event has occurred)
-    uint8_t Ylow; //Y low. Default value: 0 (0: no interrupt, 1: Y low event has occurred)
-    uint8_t Xhigh; //X high. Default value: 0 (0: no interrupt, 1: X high event has occurred)
-    uint8_t Xlow; //X low. Default value: 0 (0: no interrupt, 1: X low event has occurred)
     /*INT1_THS_XH (32h)*/
     uint8_t Int1XHighTr; //Interrupt threshold X HIGH. Default value: 0000 0000
     /*INT1_THS_XL (33h)*/
@@ -148,11 +148,8 @@ typedef struct int_cfg
 }gyroInt_t;
 
 typedef struct gyro_param{
-    #ifdef SPI
-        SPI_HandleTypeDef *handle_spi;
-    #else
-        I2C_HandleTypeDef *handle_i2c;
-    #endif
+    gyroError_t (*funcReadRegs)(uint16_t startAdd, uint16_t len, uint8_t *store);
+    gyroError_t (*funcWriteRegs)(uint16_t startAdd, uint16_t len, uint8_t *store);
     /*WHO_AM_I (0Fh)*/
     uint8_t Id;
     /*CTRL_REG1 (20h)*/
@@ -167,7 +164,6 @@ typedef struct gyro_param{
     /*CTRL_REG2 (21h)*/
     uint8_t HPFilterMode; //High-pass filter mode selection. Default value: 00
     uint8_t HPCutOff; //High-pass filter cutoff frequency selection
-
     /*CTRL_REG4 (23h)*/
     uint8_t Ble; //Big/little endian data selection. Default value 0. (0: data LSB @ lower address; 1: data MSB @ lower address)
     uint8_t FullScale; //Full-scale selection. Default value: 00 (00: ±245 dps; 01: ±500 dps; 10: ±2000 dps; 11: ±2000 dps)
@@ -220,6 +216,7 @@ typedef struct gyro_param{
  * */
 gyroError_t gyroInit(gyro_t* hGyro);
 
+
 /*@brief Deinitialize Gyro-object - motion sensor
  * Releases connection for other devices
  * hGyro - pointer to structure defined Gyro-object
@@ -227,12 +224,33 @@ gyroError_t gyroInit(gyro_t* hGyro);
  * */
 gyroError_t gyroDeinit(gyro_t* hGyro);
 
+
+
+/*@brief Reads register values started from <startAdd>, ended on <startAdd>+<len>
+ * startAdd - start register address
+ * len      - bytes qty
+ * store    - array of register values
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyro_funcReadRegs(uint16_t startAdd, uint16_t len, uint8_t *store);
+
+
+/*@brief Writes values stored in <store> to device registers started from <startAdd>
+ * startAdd - start register address
+ * len      - bytes qty
+ * store    - array of register values
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyro_funcWriteRegs(uint16_t startAdd, uint16_t len, uint8_t *store);
+
+
 /*@brief Reads current yaw, pitch, and roll data.
  * hGyro - pointer to structure defined Gyro-object
  * gVal  - pointer to array type uint16_t[3] = X, Y, Z
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
 gyroError_t gyroReadVal(gyro_t* hGyro, uint16_t* gVal);
+
 
 /*@brief Reads current state of status register of the Gyro-object
  * and stores it in appropriate fields of hGyro
@@ -248,6 +266,12 @@ gyroError_t gyroReadStatus(gyro_t* hGyro);
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
 gyroError_t gyroReadFifoSrc(gyro_t* hGyro);
+
+/*@brief Defines the source of interrupt and sets appropriate flag
+ * intFlag - pointer to structure of interruption flags
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ */
+gyroError_t gyroGetIntStatus(gyroIntFlag_t *intFlag);
 
 /*@brief Sets the Gyro-object data collecting mode
  * hGyro - pointer to structure defined Gyro-object
@@ -277,12 +301,14 @@ gyroError_t gyroSetIntMode(gyro_t* hGyro, gyroInt_t* intCfg);
  * */
 gyroError_t gyroSetHighPathFilter(gyro_t* hGyro, gyroHPMode_t mode, gyroHpcf_t freq);
 
+
 /*@brief Sets big/little endian data order
  *hGyro - pointer to structure defined Gyro-object
  *ble   - 0: data LSB @ lower address; 1: data MSB @ lower address
  *Returns gyroOk (= 0) if parameter written correctly or error code
  * */
 gyroError_t gyroSetBle(gyro_t* hGyro, uint8_t ble);
+
 
 /*@brief sets full scale measurement
  * hGyro - pointer to structure defined Gyro-object
@@ -298,9 +324,5 @@ gyroError_t gyroSetFullScale(gyro_t* hGyro, uint8_t type);
  * */
 gyroError_t gyroSelfTest(gyro_t* hGyro, uint8_t conf);
 
-/*@brief interruption handler
- * gyro_t*  - pointer to structure defined Gyro-object
- * */
-void (*interruptFunction)(gyro_t*);
 
 #endif /* INC_GYRO_I3G4250D_H_ */
