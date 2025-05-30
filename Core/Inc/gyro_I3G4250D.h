@@ -10,6 +10,8 @@
 #ifndef INC_GYRO_I3G4250D_H_
 #define INC_GYRO_I3G4250D_H_
 
+#include <stdint.h>
+
 /*Statuses of several settings*/
 enum is_enable
 {
@@ -23,7 +25,8 @@ typedef enum
     gyroOk = 0,
     gyroCommError = 1,
     gyroUnknownStatus = 2,
-    gyroNotAnswer = 3
+    gyroNotAnswer = 3,
+    gyroInitError = 4
 }gyroError_t;
 
 typedef enum
@@ -33,10 +36,13 @@ typedef enum
     gyroModeStream = 2
 }gyroMode_t;
 
-typedef enum
+typedef enum d_rate
 {
-
-}gyroInt1Mode_t;
+    ODR100 = 100,
+    ODR200 = 200,
+    ODR400 = 400,
+    ODR800 = 800
+}drate_t;
 
 typedef enum hp_cf
 {
@@ -61,9 +67,20 @@ typedef enum hp_mode
 }gyroHPMode_t;
 
 
-/*Define enabled interrupt types*/
-#define USER_INT1 DISABLE //Programmable interrupt
-#define DRDY_INT2 DISABLE //Data ready / FIFO interrupt
+typedef enum
+{
+    NORMAL,
+    SLEEP,
+    DOWN
+}gyroPowMode_t;
+
+typedef enum
+{
+    FS245,
+    FS500,
+    FS2000
+}fscale_t;
+
 
 #define ADD_WHO_AM_I 0x0F
 #define ADD_CTRL_REG1 0x20
@@ -93,11 +110,6 @@ typedef enum hp_mode
 #define ADD_INT1_DURATION 0x38
 
 
-#define POW_MODE_NORMAL 0
-#define POW_MODE_SLEEP 1
-#define POW_MODE_DOWN 2
-
-
 typedef struct int_flg
 {
     /*INT1_SRC (31h)*/
@@ -110,8 +122,27 @@ typedef struct int_flg
     uint8_t XlowFlag; //X low. Default value: 0 (0: no interrupt, 1: X low event has occurred)
 }gyroIntFlag_t;
 
-typedef struct int_cfg
-{
+typedef struct gyro_param{
+    /*Function prototypes for read and write registers*/
+    gyroError_t (*funcReadRegs)(uint16_t startAdd, uint16_t len, uint8_t *store);
+    gyroError_t (*funcWriteRegs)(uint16_t startAdd, uint16_t len, uint8_t *store);
+    /*-Calculating values-*/
+    drate_t Odr; //Digital output data rate (105/208/420/840)
+    gyroPowMode_t PowerMode; // power mode selection (power-down / normal /sleep mode)
+    uint16_t LPCutOff;//table 21
+    uint16_t HPCutOff;//table 26
+    /*WHO_AM_I (0Fh)*/
+    uint8_t Id;
+    /*CTRL_REG1 (20h)*/
+    uint8_t DataRate; //Output data rate selection. Refer to Table 21.
+    uint8_t BandWidth; //Bandwidth selection. Refer to Table 21.
+    uint8_t PDownModeEn; //Enables power-down mode. Default value: 0
+    uint8_t Zen; //Enables Z-axis. Default value: 1
+    uint8_t Yen; //Enables Y-axis. Default value: 1
+    uint8_t Xen; //Enables X-axis. Default value: 1
+    /*CTRL_REG2 (21h)*/
+    uint8_t HPFilterMode; //High-pass filter mode selection. Default value: 00
+    uint8_t HPCutOffCode; //High-pass filter cutoff frequency selection
     /*CTRL_REG3 (22h)*/
     uint8_t Int1En; //Enables interrupt on the INT1 pin. Default value 0.
     uint8_t Int1Boot; //Boot status available on INT1. Default value 0.
@@ -121,52 +152,9 @@ typedef struct int_cfg
     uint8_t FIFOWtmEn; //FIFO watermark interrupt on DRDY/INT2. Default value: 0. (0: disable; 1: enable)
     uint8_t FIFOOvrnEn; //FIFO overrun interrupt on DRDY/INT2 Default value: 0. (0: disable; 1: enable)
     uint8_t FIFOEmptyEn; //FIFO empty interrupt on DRDY/INT2. Default value: 0. (0: disable; 1: enable)
-    /*INT1_CFG (30h)*/
-    uint8_t Andor; //AND/OR combination of interrupt events. Default value: 0 (0: OR combination of interrupt events 1: AND combination of interrupt events
-    uint8_t Lir; //Latch interrupt request. Default value: 0 (0: interrupt request not latched; 1: interrupt request latched) Cleared by reading INT1_SRC (31h).
-    uint8_t ZHIE; //Enables interrupt generation on Z high event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value higher than preset threshold)
-    uint8_t ZLIE; //Enables interrupt generation on Z low event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value lower than preset threshold)
-    uint8_t YHIE; //Enables interrupt generation on Y high event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value higher than preset threshold)
-    uint8_t YLIE; //Enables interrupt generation on Y low event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value lower than preset threshold)
-    uint8_t XHIE; //Enables interrupt generation on X high event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value higher than preset threshold)
-    uint8_t XLIE; //Enables interrupt generation on X low event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value lower than preset threshold)
-    /*INT1_THS_XH (32h)*/
-    uint8_t Int1XHighTr; //Interrupt threshold X HIGH. Default value: 0000 0000
-    /*INT1_THS_XL (33h)*/
-    uint8_t Int1XLowTr; //Interrupt threshold X LOW. Default value: 0000 0000
-    /*INT1_THS_YH (34h)*/
-    uint8_t Int1YHighTr; //Interrupt threshold Y HIGH. Default value: 0000 0000
-    /*INT1_THS_YL (35h)*/
-    uint8_t Int1YLowTr; //Interrupt threshold Y LOW. Default value: 0000 0000
-    /*INT1_THS_ZH (36h)*/
-    uint8_t Int1ZHighTr; //Interrupt threshold Z HIGH. Default value: 0000 0000
-    /*INT1_THS_ZL (37h)*/
-    uint8_t Int1ZLowTr; //Interrupt threshold Z LOW. Default value: 0000 0000
-    /*INT1_DURATION (38h)*/
-    uint8_t Int1Wait; //Enables WAIT bit. Default value: 0 (0: disable; 1: enable)
-    uint8_t Int1Duration; //Duration value. Default value: 000 0000
-}gyroInt_t;
-
-typedef struct gyro_param{
-    gyroError_t (*funcReadRegs)(uint16_t startAdd, uint16_t len, uint8_t *store);
-    gyroError_t (*funcWriteRegs)(uint16_t startAdd, uint16_t len, uint8_t *store);
-    /*WHO_AM_I (0Fh)*/
-    uint8_t Id;
-    /*CTRL_REG1 (20h)*/
-    uint8_t DataRate; //Output data rate selection. Refer to Table 21.
-    uint8_t BandWidth; //Bandwidth selection. Refer to Table 21.
-    uint8_t PDownMode; //Enables power-down mode. Default value: 0
-    uint8_t Zen; //Enables Z-axis. Default value: 1
-    uint8_t Yen; //Enables Y-axis. Default value: 1
-    uint8_t Xen; //Enables X-axis. Default value: 1
-    uint16_t Odr; //Digital output data rate (105/208/420/840)
-    uint8_t PowerMode; // power mode selection (power-down / normal /sleep mode)
-    /*CTRL_REG2 (21h)*/
-    uint8_t HPFilterMode; //High-pass filter mode selection. Default value: 00
-    uint8_t HPCutOff; //High-pass filter cutoff frequency selection
     /*CTRL_REG4 (23h)*/
     uint8_t Ble; //Big/little endian data selection. Default value 0. (0: data LSB @ lower address; 1: data MSB @ lower address)
-    uint8_t FullScale; //Full-scale selection. Default value: 00 (00: ±245 dps; 01: ±500 dps; 10: ±2000 dps; 11: ±2000 dps)
+    fscale_t FullScale; //Full-scale selection. Default value: 00 (00: ±245 dps; 01: ±500 dps; 10: ±2000 dps; 11: ±2000 dps)
     uint8_t SelfTestEn; //Enables self-test. Default value: 00 (00: self-test disabled; other: see Table 31
     uint8_t SPIModeSel; //SPI serial interface mode selection. Default value: 0 (0: 4-wire interface; 1: 3-wire interface)
     /*CTRL_REG5 (24h)*/
@@ -180,7 +168,6 @@ typedef struct gyro_param{
     /*OUT_TEMP (26h)*/
     uint16_t OutTemp;
     /*STATUS_REG (27h)*/
-    uint8_t StatusReg;
     uint8_t zyxor; //X-, Y-, Z-axis data overrun. Default value: 0 (0: no overrun has occurred; 1: new data has overwritten the previous data before it was read)
     uint8_t zor; //Z-axis data overrun. Default value: 0 (0: no overrun has occurred; 1: new data for the Z-axis has overwritten the previous data)
     uint8_t yor; //Y-axis data overrun. Default value: 0 (0: no overrun has occurred; 1: a new data for the Y-axis has overwritten the previous data)
@@ -203,9 +190,33 @@ typedef struct gyro_param{
     uint8_t FifoOvrnStatus; //Overrun bit status. (0: FIFO is not completely filled; 1: FIFO is completely filled)
     uint8_t FifoEmpty; //FIFO empty bit. (0: FIFO not empty; 1: FIFO empty)
     uint8_t FifoStored; //FIFO stored data level
+    /*INT1_CFG (30h)*/
+    uint8_t Andor; //AND/OR combination of interrupt events. Default value: 0 (0: OR combination of interrupt events 1: AND combination of interrupt events
+    uint8_t Lir; //Latch interrupt request. Default value: 0 (0: interrupt request not latched; 1: interrupt request latched) Cleared by reading INT1_SRC (31h).
+    uint8_t ZHIE; //Enables interrupt generation on Z high event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value higher than preset threshold)
+    uint8_t ZLIE; //Enables interrupt generation on Z low event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value lower than preset threshold)
+    uint8_t YHIE; //Enables interrupt generation on Y high event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value higher than preset threshold)
+    uint8_t YLIE; //Enables interrupt generation on Y low event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value lower than preset threshold)
+    uint8_t XHIE; //Enables interrupt generation on X high event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value higher than preset threshold)
+    uint8_t XLIE; //Enables interrupt generation on X low event. Default value: 0 (0: disable interrupt request; 1: enable interrupt request on measured rate value lower than preset threshold)
+    /*INT1_SRC (31h)*/
+    gyroIntFlag_t *InterruptFlags;
+    /*INT1_THS_XH (32h)*/
+    uint8_t Int1XHighTr; //Interrupt threshold X HIGH. Default value: 0000 0000
+    /*INT1_THS_XL (33h)*/
+    uint8_t Int1XLowTr; //Interrupt threshold X LOW. Default value: 0000 0000
+    /*INT1_THS_YH (34h)*/
+    uint8_t Int1YHighTr; //Interrupt threshold Y HIGH. Default value: 0000 0000
+    /*INT1_THS_YL (35h)*/
+    uint8_t Int1YLowTr; //Interrupt threshold Y LOW. Default value: 0000 0000
+    /*INT1_THS_ZH (36h)*/
+    uint8_t Int1ZHighTr; //Interrupt threshold Z HIGH. Default value: 0000 0000
+    /*INT1_THS_ZL (37h)*/
+    uint8_t Int1ZLowTr; //Interrupt threshold Z LOW. Default value: 0000 0000
+    /*INT1_DURATION (38h)*/
+    uint8_t Int1Wait; //Enables WAIT bit. Default value: 0 (0: disable; 1: enable)
+    uint8_t Int1Duration; //Duration value. Default value: 000 0000
 }gyro_t;
-
-
 
 
 /*@brief Initialize Gyro-object - motion sensor type I3G4250D
@@ -225,23 +236,25 @@ gyroError_t gyroInit(gyro_t* hGyro);
 gyroError_t gyroDeinit(gyro_t* hGyro);
 
 
-
-/*@brief Reads register values started from <startAdd>, ended on <startAdd>+<len>
- * startAdd - start register address
- * len      - bytes qty
- * store    - array of register values
+/*@brief Turns off hGyro-object
+ * hGyro - pointer to structure defined Gyro-object
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
-gyroError_t gyro_funcReadRegs(uint16_t startAdd, uint16_t len, uint8_t *store);
+gyroError_t gyroPowerDown(gyro_t* hGyro);
 
 
-/*@brief Writes values stored in <store> to device registers started from <startAdd>
- * startAdd - start register address
- * len      - bytes qty
- * store    - array of register values
+/*@brief Turns hGyro-object to sleep mode
+ * hGyro - pointer to structure defined Gyro-object
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
-gyroError_t gyro_funcWriteRegs(uint16_t startAdd, uint16_t len, uint8_t *store);
+gyroError_t gyroSleep(gyro_t* hGyro);
+
+
+/*@brief Turns on hGyro-object
+ * hGyro - pointer to structure defined Gyro-object
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyroTurnOn(gyro_t* hGyro);
 
 
 /*@brief Reads current yaw, pitch, and roll data.
@@ -249,7 +262,7 @@ gyroError_t gyro_funcWriteRegs(uint16_t startAdd, uint16_t len, uint8_t *store);
  * gVal  - pointer to array type uint16_t[3] = X, Y, Z
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
-gyroError_t gyroReadVal(gyro_t* hGyro, uint16_t* gVal);
+gyroError_t gyroReadVal(gyro_t* hGyro, float* gVal);
 
 
 /*@brief Reads current state of status register of the Gyro-object
@@ -265,19 +278,21 @@ gyroError_t gyroReadStatus(gyro_t* hGyro);
  * hGyro - pointer to structure defined Gyro-object
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
-gyroError_t gyroReadFifoSrc(gyro_t* hGyro);
+gyroError_t gyroReadFifoStatus(gyro_t* hGyro);
 
 /*@brief Defines the source of interrupt and sets appropriate flag
  * intFlag - pointer to structure of interruption flags
  * Returns gyroOk (= 0) if parameter written correctly or error code
  */
-gyroError_t gyroGetIntStatus(gyroIntFlag_t *intFlag);
+gyroError_t gyroReadIntStatus(gyro_t* hGyro);
+
+
 
 /*@brief Sets the Gyro-object data collecting mode
  * hGyro - pointer to structure defined Gyro-object
- * mode  -   - bypass
- *           - FIFO
- *           - stream
+ * mode  - bypass
+ *       - FIFO
+ *       - stream
  * wtm   - FIFO Watermark level.
  * Returns gyroOk (= 0) if parameter written correctly
  * or error code
@@ -287,10 +302,32 @@ gyroError_t gyroSetFifoMode(gyro_t* hGyro, gyroMode_t mode, uint16_t wtm);
 
 /*@brief Sets interrupts on pins INT1 and INT2
  *  hGyro   - pointer to structure defined Gyro-object
- *  intCfg  - pointer to structure with interrupt parameters
  *  Returns gyroOk (= 0) if parameter written correctly or error code
  * */
-gyroError_t gyroSetIntMode(gyro_t* hGyro, gyroInt_t* intCfg);
+gyroError_t gyroSetIntMode(gyro_t* hGyro);
+
+
+/*@brief Sets mode of filtering output data and selects which data
+ * use for interrupt source - filtered or not *
+ * hGyro   - pointer to structure defined Gyro-object
+ * next parameters need to be set:
+ * - Boot;
+ * - FifoEn;
+ * - HPFilterEn;
+ * - Int1SelConf;
+ * - OutSelConf;
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyroSetOutMode(gyro_t* hGyro);
+
+
+
+/*@brief Sets digital output data rate
+ * hGyro - pointer to structure defined Gyro-object
+ * dataRate - {100, 200, 400, 800} Hz
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyroSetOutDataRate(gyro_t* hGyro, drate_t dataRate);
 
 
 /*@brief Sets cutoff frequency for HighPath filter
@@ -299,7 +336,7 @@ gyroError_t gyroSetIntMode(gyro_t* hGyro, gyroInt_t* intCfg);
  * freq  - cutoff frequency (0..9)
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
-gyroError_t gyroSetHighPathFilter(gyro_t* hGyro, gyroHPMode_t mode, gyroHpcf_t freq);
+gyroError_t gyroSetHPFilter(gyro_t* hGyro, gyroHPMode_t mode, gyroHpcf_t freq);
 
 
 /*@brief Sets big/little endian data order
@@ -315,14 +352,21 @@ gyroError_t gyroSetBle(gyro_t* hGyro, uint8_t ble);
  * type  - (00: ±245 dps; 01: ±500 dps; 10: ±2000 dps; 11: ±2000 dps)
  * Returns gyroOk (= 0) if parameter written correctly or error code
  *  */
-gyroError_t gyroSetFullScale(gyro_t* hGyro, uint8_t type);
+gyroError_t gyroSetFullScale(gyro_t* hGyro, fscale_t type);
+
 
 /*@brief starts self test
  * hGyro - pointer to structure defined Gyro-object
- * conf  - self-test mode configuration 00 - Normal mode, 01 - Self-test 0 (+), 11 - Self-test 1 (-)
+ * conf  - self-test mode configuration 0 - Normal mode, 1 - Self-test 0 (+), 3 - Self-test 1 (-)
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
 gyroError_t gyroSelfTest(gyro_t* hGyro, uint8_t conf);
 
+
+/*@brief Retoots hGyro object
+ * hGyro - pointer to structure defined Gyro-object
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyroReboot(gyro_t* hGyro);
 
 #endif /* INC_GYRO_I3G4250D_H_ */
