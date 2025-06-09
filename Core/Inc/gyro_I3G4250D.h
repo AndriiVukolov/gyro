@@ -11,13 +11,7 @@
 #define INC_GYRO_I3G4250D_H_
 
 #include <stdint.h>
-
-/*Statuses of several settings*/
-enum is_enable
-{
-    DISABLE = 0,
-    ENABLE = 1
-};
+#include "gpio.h"
 
 /*Errors*/
 typedef enum
@@ -78,9 +72,20 @@ typedef enum
 {
     FS245,
     FS500,
-    FS2000
+    FS2000,
+	FS2000_2
 }fscale_t;
 
+enum rw //0-write,1-read
+{
+    WRITE,
+    READ
+};
+enum autoincrement
+{
+	SINGLE,
+	MULTIPLY
+};
 
 #define ADD_WHO_AM_I 0x0F
 #define ADD_CTRL_REG1 0x20
@@ -109,6 +114,12 @@ typedef enum
 #define ADD_INT1_THS_ZL 0x37
 #define ADD_INT1_DURATION 0x38
 
+//#define SPI_EN() HAL_GPIO_WritePin(NCS_MEMS_SPI_GPIO_Port, NCS_MEMS_SPI_Pin, GPIO_PIN_RESET)
+//#define SPI_DIS() HAL_GPIO_WritePin(NCS_MEMS_SPI_GPIO_Port, NCS_MEMS_SPI_Pin, GPIO_PIN_SET)
+
+//#define I2C_ADDRESS_BIT_RES() HAL_GPIO_WritePin(NCS_MEMS_SPI_GPIO_Port, NCS_MEMS_SPI_Pin, GPIO_PIN_RESET)
+//#define I2C_ADDRESS_BIT_SET() HAL_GPIO_WritePin(NCS_MEMS_SPI_GPIO_Port, NCS_MEMS_SPI_Pin, GPIO_PIN_SET)
+
 
 typedef struct int_flg
 {
@@ -124,8 +135,8 @@ typedef struct int_flg
 
 typedef struct gyro_param{
     /*Function prototypes for read and write registers*/
-    gyroError_t (*funcReadRegs)(uint16_t startAdd, uint16_t len, uint8_t *store);
-    gyroError_t (*funcWriteRegs)(uint16_t startAdd, uint16_t len, uint8_t *store);
+    gyroError_t (*funcReadRegs)(uint8_t startAdd, uint16_t len, uint8_t *store);
+    gyroError_t (*funcWriteRegs)(uint8_t startAdd, uint16_t len, uint8_t *store);
     /*-Calculating values-*/
     drate_t Odr; //Digital output data rate (105/208/420/840)
     gyroPowMode_t PowerMode; // power mode selection (power-down / normal /sleep mode)
@@ -141,7 +152,7 @@ typedef struct gyro_param{
     uint8_t Yen; //Enables Y-axis. Default value: 1
     uint8_t Xen; //Enables X-axis. Default value: 1
     /*CTRL_REG2 (21h)*/
-    uint8_t HPFilterMode; //High-pass filter mode selection. Default value: 00
+    gyroHPMode_t HPFilterMode; //High-pass filter mode selection. Default value: 00
     uint8_t HPCutOffCode; //High-pass filter cutoff frequency selection
     /*CTRL_REG3 (22h)*/
     uint8_t Int1En; //Enables interrupt on the INT1 pin. Default value 0.
@@ -240,7 +251,7 @@ gyroError_t gyroDeinit(gyro_t* hGyro);
  * hGyro - pointer to structure defined Gyro-object
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
-gyroError_t gyroPowerDown(gyro_t* hGyro);
+gyroError_t gyroTurnOff(gyro_t* hGyro);
 
 
 /*@brief Turns hGyro-object to sleep mode
@@ -264,6 +275,12 @@ gyroError_t gyroTurnOn(gyro_t* hGyro);
  * */
 gyroError_t gyroReadVal(gyro_t* hGyro, float* gVal);
 
+/*@brief Reads all registers
+ * hGyro - pointer to structure defined Gyro-object
+ * regs  - content of registers
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyroReadAll(gyro_t* hGyro, uint8_t *regs);
 
 /*@brief Reads current state of status register of the Gyro-object
  * and stores it in appropriate fields of hGyro
@@ -286,6 +303,16 @@ gyroError_t gyroReadFifoStatus(gyro_t* hGyro);
  */
 gyroError_t gyroReadIntStatus(gyro_t* hGyro);
 
+/*@brief Reads register 5  of Gyro-object
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyroReadReg5(gyro_t* hGyro);
+
+
+/*@brief Reads reference register  of Gyro-object
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyroReadReference(gyro_t* hGyro);
 
 
 /*@brief Sets the Gyro-object data collecting mode
@@ -297,11 +324,14 @@ gyroError_t gyroReadIntStatus(gyro_t* hGyro);
  * Returns gyroOk (= 0) if parameter written correctly
  * or error code
  * */
-gyroError_t gyroSetFifoMode(gyro_t* hGyro, gyroMode_t mode, uint16_t wtm);
+gyroError_t gyroSetFifoMode(gyro_t* hGyro);
 
 
 /*@brief Sets interrupts on pins INT1 and INT2
  *  hGyro   - pointer to structure defined Gyro-object
+ *  Need to set:
+ *
+ *
  *  Returns gyroOk (= 0) if parameter written correctly or error code
  * */
 gyroError_t gyroSetIntMode(gyro_t* hGyro);
@@ -336,7 +366,7 @@ gyroError_t gyroSetOutDataRate(gyro_t* hGyro, drate_t dataRate);
  * freq  - cutoff frequency (0..9)
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
-gyroError_t gyroSetHPFilter(gyro_t* hGyro, gyroHPMode_t mode, gyroHpcf_t freq);
+gyroError_t gyroSetHPFilter(gyro_t* hGyro);
 
 
 /*@brief Sets big/little endian data order
@@ -352,7 +382,7 @@ gyroError_t gyroSetBle(gyro_t* hGyro, uint8_t ble);
  * type  - (00: ±245 dps; 01: ±500 dps; 10: ±2000 dps; 11: ±2000 dps)
  * Returns gyroOk (= 0) if parameter written correctly or error code
  *  */
-gyroError_t gyroSetFullScale(gyro_t* hGyro, fscale_t type);
+gyroError_t gyroSetFullScale(gyro_t* hGyro);
 
 
 /*@brief starts self test
@@ -368,5 +398,12 @@ gyroError_t gyroSelfTest(gyro_t* hGyro, uint8_t conf);
  * Returns gyroOk (= 0) if parameter written correctly or error code
  * */
 gyroError_t gyroReboot(gyro_t* hGyro);
+
+/*@brief Reads ID of gyro-object and writes it to config structure
+ * hGyro - pointer to structure defined Gyro-object
+ * Returns gyroOk (= 0) if parameter written correctly or error code
+ * */
+gyroError_t gyroReadID(gyro_t* hGyro);
+
 
 #endif /* INC_GYRO_I3G4250D_H_ */

@@ -189,10 +189,6 @@ void Error_Handler(void);
 #define HSYNC_GPIO_Port GPIOC
 #define G6_Pin GPIO_PIN_7
 #define G6_GPIO_Port GPIOC
-#define I2C3_SDA_Pin GPIO_PIN_9
-#define I2C3_SDA_GPIO_Port GPIOC
-#define I2C3_SCL_Pin GPIO_PIN_8
-#define I2C3_SCL_GPIO_Port GPIOA
 #define STLINK_RX_Pin GPIO_PIN_9
 #define STLINK_RX_GPIO_Port GPIOA
 #define STLINK_TX_Pin GPIO_PIN_10
@@ -245,7 +241,29 @@ void Error_Handler(void);
 #define NBL1_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
+#define SPI_TIMEOUT 100
+/**
+  * @brief  GYROSCOPE SPI Interface pins
+  */
+#define GYRO_CS_PIN                             GPIO_PIN_1                  /* PC.01 */
+#define GYRO_CS_GPIO_PORT                       GPIOC                       /* GPIOC */
+#define GYRO_CS_GPIO_CLK_ENABLE()               __HAL_RCC_GPIOC_CLK_ENABLE()
+#define GYRO_CS_GPIO_CLK_DISABLE()              __HAL_RCC_GPIOC_CLK_DISABLE()
 
+#define GYRO_INT_GPIO_CLK_ENABLE()              __HAL_RCC_GPIOA_CLK_ENABLE()
+#define GYRO_INT_GPIO_CLK_DISABLE()             __HAL_RCC_GPIOA_CLK_DISABLE()
+#define GYRO_INT_GPIO_PORT                      GPIOA                       /* GPIOA */
+#define GYRO_INT1_PIN                           GPIO_PIN_1                  /* PA.01 */
+#define GYRO_INT1_EXTI_IRQn                     EXTI1_IRQn
+#define GYRO_INT2_PIN                           GPIO_PIN_2                  /* PA.02 */
+#define GYRO_INT2_EXTI_IRQn                     EXTI2_IRQn
+
+/* Chip Select macro definition */
+#define GYRO_CS_LOW()       HAL_GPIO_WritePin(GYRO_CS_GPIO_PORT, GYRO_CS_PIN, GPIO_PIN_RESET)
+#define GYRO_CS_HIGH()      HAL_GPIO_WritePin(GYRO_CS_GPIO_PORT, GYRO_CS_PIN, GPIO_PIN_SET)
+
+#define SPI_EN() GYRO_CS_LOW()
+#define SPI_DIS() GYRO_CS_HIGH()
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

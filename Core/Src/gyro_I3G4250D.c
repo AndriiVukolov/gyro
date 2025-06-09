@@ -7,6 +7,8 @@
  */
 
 #include "gyro_I3G4250D.h"
+#include "stm32f4xx_hal.h"
+#include "spi.h"
 #include <stdint.h>
 #include <math.h>
 
@@ -46,137 +48,73 @@ static uint16_t HPCutoffCalculation(gyro_t* hGyro)//table 26 (need to divide by 
     return hpf;
 }
 
-static float AngleCalculate(gyro_t* hGyro, uint16_t angle)
+static float AngleCalculate(gyro_t* hGyro, int16_t angle)
 {
     float res = 0;
-    uint16_t fsval[4] = {245,500,2000,2000};
-    res = (float)angle * fsval[hGyro->FullScale];
+    float scale = 0;
+
+    switch (hGyro->FullScale)
+    {
+		case FS245:
+			scale = 8.75;
+			break;
+		case FS500:
+			scale = 17.5;
+			break;
+		case FS2000:
+			scale = 70.0;
+			break;
+		case FS2000_2:
+			scale = 70.0;
+			break;
+    }
+    res = ((float) angle * scale) / 1000;
     return res;
 }
 
-static gyroError_t gyroReadAll(gyro_t* hGyro)
+gyroError_t gyroReadID(gyro_t* hGyro)
 {
-    uint8_t regs[(ADD_INT1_DURATION - ADD_CTRL_REG1 + 2)] = {0};
-    uint8_t err = hGyro->funcReadRegs(ADD_WHO_AM_I, 1, regs);
-    /*WHO_AM_I (0Fh)*/
-    if (err != gyroOk) return gyroCommError;
-    else hGyro->Id = regs[0];
+	uint8_t idByte = 0;
+	uint8_t err = hGyro->funcReadRegs(ADD_WHO_AM_I, 1, &idByte);
 
-    err = hGyro->funcReadRegs(ADD_CTRL_REG1, (ADD_INT1_DURATION - ADD_CTRL_REG1 + 1), &regs[1]);
-    /*CTRL_REG1 (20h)*/
-    hGyro->DataRate = (regs[1] & 0xC0) >> 6;
-    hGyro->BandWidth = (regs[1] & 0x30) >> 4;
-    hGyro->PDownModeEn = (regs[1] & 0x08) >> 3;
-    hGyro->Zen = (regs[1] & 0x04) >> 2;
-    hGyro->Yen = (regs[1] & 0x02) >> 1;
-    hGyro->Xen = (regs[1] & 0x01);
-    /*CTRL_REG2 (21h)*/
-    hGyro->HPFilterMode = regs[2] & 0x30 >> 4;
-    hGyro->HPCutOffCode = regs[2] & 0x0F;
-    /*CTRL_REG3 (22h)*/
-    hGyro->Int1En = (regs[3] & 0x80) >> 7;
-    hGyro->Int1Boot = (regs[3] & 0x40) >> 6;
-    hGyro->IntActConfig = (regs[3] & 0x20) >> 5;
-    hGyro->IOutType = (regs[3] & 0x10) >> 4;
-    hGyro->Int2En = (regs[3] & 0x08) >> 3;
-    hGyro->FIFOWtmEn = (regs[3] & 0x04) >> 2;
-    hGyro->FIFOOvrnEn = (regs[3] & 0x02) >> 1;
-    hGyro->FIFOEmptyEn = (regs[3] & 0x01) >> 0;
-    /*CTRL_REG4 (23h)*/
-    hGyro->Ble = (regs[4] & 0x40) >> 6;
-    hGyro->FullScale = (regs[4] & 0x30) >> 4;
-    hGyro->SelfTestEn = (regs[4] & 0x06) >> 1;
-    hGyro->SPIModeSel = (regs[4] & 0x01) >> 0;
-    /*CTRL_REG5 (24h)*/
-    hGyro->Boot = (regs[5] & 0x80) >> 7;
-    hGyro->FifoEn = (regs[5] & 0x40) >> 6;
-    hGyro->HPFilterEn = (regs[5] & 0x10) >> 4;
-    hGyro->Int1SelConf = (regs[5] & 0x0C) >> 2;
-    hGyro->OutSelConf = (regs[5] & 0x03) >> 0;
-    /*REFERENCE/DATACAPTURE (25h)*/
-    hGyro->RefData = regs[6];
-    /*OUT_TEMP (26h)*/
-    hGyro->OutTemp = regs[7];
-    /*STATUS_REG (27h)*/
-    hGyro->zyxor = (regs[8] & 0x80) >> 7;
-    hGyro->zor = (regs[8] & 0x40) >> 6;
-    hGyro->yor = (regs[8] & 0x20) >> 5;
-    hGyro->xor = (regs[8] & 0x10) >> 4;
-    hGyro->zyxda = (regs[8] & 0x08) >> 3;
-    hGyro->zda = (regs[8] & 0x04) >> 2;
-    hGyro->yda = (regs[8] & 0x02) >> 1;
-    hGyro->xda = (regs[8] & 0x01) >> 0;
-    /*OUT_X_L (28h), OUT_X_H (29h)*/
-    hGyro->OutX = (regs[9] << 8) | regs[10];
-    /*OUT_Y_L (2Ah), OUT_Y_H (2Bh)*/
-    hGyro->OutY = (regs[11] << 8) | regs[12];
-    /*OUT_Z_L (2Ch), OUT_Z_H (2Dh)*/
-    hGyro->OutZ = (regs[13] << 8) | regs[14];
-    /*FIFO_CTRL_REG (2Eh)*/
-    hGyro->FifoModeSel = (regs[15] & 0xE0) >> 5;
-    hGyro->FifoThreshold = regs[15] & 0x1F;
-    /*FIFO_SRC_REG (2Fh)*/
-    hGyro->FifoWtmStatus = (regs[16] & 0x80) >> 7;
-    hGyro->FifoOvrnStatus = (regs[16] & 0x40) >> 6;
-    hGyro->FifoEmpty = (regs[16] & 0x20) >> 5;
-    hGyro->FifoStored = (regs[16] & 0x1F);
-    /*INT1_CFG (30h)*/
-    hGyro->Andor = (regs[17] & 0x80) >> 7;
-    hGyro->Lir = (regs[17] & 0x40) >> 6;
-    hGyro->ZHIE = (regs[17] & 0x20) >> 5;
-    hGyro->ZLIE = (regs[17] & 0x10) >> 4;
-    hGyro->YHIE = (regs[17] & 0x08) >> 3;
-    hGyro->YLIE = (regs[17] & 0x04) >> 2;
-    hGyro->XHIE = (regs[17] & 0x02) >> 1;
-    hGyro->XLIE = (regs[17] & 0x01) >> 0;
-    /*INT1_SRC (31h)*/
-    //(regs[18] & 0x80) >> 7 = 0
-    hGyro->InterruptFlags->IntFlag = (regs[18] & 0x40) >> 6;
-    hGyro->InterruptFlags->ZhighFlag = (regs[18] & 0x20) >> 5;
-    hGyro->InterruptFlags->ZLowFlag = (regs[18] & 0x10) >> 4;
-    hGyro->InterruptFlags->YhighFlag = (regs[18] & 0x08) >> 3;
-    hGyro->InterruptFlags->YlowFlag = (regs[18] & 0x04) >> 2;
-    hGyro->InterruptFlags->XhighFlag = (regs[18] & 0x02) >> 1;
-    hGyro->InterruptFlags->XlowFlag = (regs[18] & 0x01) >> 0;
-    /*INT1_THS_XH (32h)*/
-    hGyro->Int1XHighTr = regs[19];
-    /*INT1_THS_XL (33h)*/
-    hGyro->Int1XLowTr = regs[20];
-    /*INT1_THS_YH (34h)*/
-    hGyro->Int1YHighTr = regs[21];
-    /*INT1_THS_YL (35h)*/
-    hGyro->Int1YLowTr = regs[22];
-    /*INT1_THS_ZH (36h)*/
-    hGyro->Int1ZHighTr = regs[23];
-    /*INT1_THS_ZL (37h)*/
-    hGyro->Int1ZLowTr = regs[24];
-    /*INT1_DURATION (38h)*/
-    hGyro->Int1Wait = (regs[25] & 0x80) >> 7;
-    hGyro->Int1Duration = (regs[25] & 0x7F);
-    //Output data rate calculation
-    hGyro->Odr = OdrCalculation(hGyro);
-    //LP Cutoff defining
-    hGyro->LPCutOff = LPCutoffCalculation(hGyro);
-    //HP Cutoff defining
-    hGyro->HPCutOff = HPCutoffCalculation(hGyro);
-    //Power mode defining
-    hGyro->PowerMode = PModeCalculation(hGyro);
+	/*WHO_AM_I (0Fh)*/
+	if (err != gyroOk) err = gyroCommError;
+	else hGyro->Id = idByte;
+
+	return err;
+}
+
+gyroError_t gyroReadAll(gyro_t* hGyro, uint8_t *regs)
+{
+	gyroError_t err = gyroOk;
+
+	err = hGyro->funcReadRegs(ADD_CTRL_REG1, 8, &regs[0]);
+	err = hGyro->funcReadRegs(ADD_OUT_X_L, 6, &regs[8]); //cyclic increment of address inside 6 value registers
+	err = hGyro->funcReadRegs(ADD_FIFO_CTRL_REG, 11, &regs[14]);
+
     return err;
 }
 
 gyroError_t gyroInit(gyro_t* hGyro)
 {
     gyroError_t err;
-    if (gyroReadAll(hGyro) != gyroOk) err = gyroInitError;
-    else err = gyroOk;
+
+    err = gyroSetOutMode(hGyro);
+    err = gyroSetIntMode(hGyro);
+    err = gyroSetFullScale(hGyro);
+    err = gyroSetFifoMode(hGyro);
+    err = gyroTurnOn(hGyro);
+    err = gyroSetHPFilter(hGyro);
+
     return err;
 }
 
 gyroError_t gyroDeinit(gyro_t* hGyro)
 {
+	return gyroOk;
 };
 
-gyroError_t gyroPowerDown(gyro_t* hGyro)//CTRL_REG1 (20h)
+gyroError_t gyroTurnOff(gyro_t* hGyro)//CTRL_REG1 (20h)
 {
     uint8_t dataByte = 0;
     gyroError_t err = gyroOk;
@@ -184,7 +122,7 @@ gyroError_t gyroPowerDown(gyro_t* hGyro)//CTRL_REG1 (20h)
     hGyro->PowerMode = DOWN;
     err = hGyro->funcReadRegs(ADD_CTRL_REG1,1,&dataByte);
     if (err != gyroOk) return err;
-    dataByte &= 0xF7;
+    dataByte &= 0xF0;
     err = hGyro->funcWriteRegs(ADD_CTRL_REG1, 1, &dataByte);
     return err;
 }
@@ -196,7 +134,8 @@ gyroError_t gyroSleep(gyro_t* hGyro)//CTRL_REG1 (20h)
     hGyro->PowerMode = SLEEP;
     err = hGyro->funcReadRegs(ADD_CTRL_REG1,1,&dataByte);
     if (err != gyroOk) return err;
-    dataByte &= 0xF8;
+    dataByte &= 0xF0;
+    dataByte |= 0x08;
     err = hGyro->funcWriteRegs(ADD_CTRL_REG1, 1, &dataByte);
     return err;
 }
@@ -206,45 +145,53 @@ gyroError_t gyroTurnOn(gyro_t* hGyro)//CTRL_REG1 (20h)
     gyroError_t err = gyroOk;
 
     hGyro->PowerMode = NORMAL;
-    err = hGyro->funcReadRegs(ADD_CTRL_REG1,1,&dataByte);
-    if (err != gyroOk) return err;
-    if ((dataByte & 0x07) > 0) dataByte |= 0x08;
-    else dataByte |= 0x0F;
+    dataByte = (hGyro->DataRate << 6) | (hGyro->BandWidth << 4) | (hGyro->PDownModeEn << 3) | (hGyro->Zen << 2) | (hGyro->Yen << 1) | hGyro->Xen;
     err = hGyro->funcWriteRegs(ADD_CTRL_REG1, 1, &dataByte);
     return err;
 }
+
 gyroError_t gyroReadVal(gyro_t* hGyro, float* gVal)//OUT_X_L (28h) - OUT_Z_H (2Dh)
 {
-    uint8_t dataByte = 0;
     uint8_t buff[6] = {0};
-    uint16_t val = 0;
+    int16_t val[3] = {0};
     uint8_t i = 0;
     gyroError_t err = gyroOk;
+    uint8_t n = 0;
 
-    err = hGyro->funcReadRegs(ADD_CTRL_REG4,1,&dataByte);
-    if (err != gyroOk) return err;
-    hGyro->FullScale = (0x30 >> 4);
-    hGyro->Ble = (0x40 >> 6);
-    err = hGyro->funcReadRegs(ADD_OUT_X_L,6,buff);
+    err = gyroReadFifoStatus(hGyro);
+
+    if (hGyro->FifoEn == 1) n = hGyro->FifoStored;
+    else n = 1;
+
+	if ((n == 31) && (hGyro->FifoOvrnStatus == 1)) n = 32;
+
+    while ((n--) > 0)
+	{
+    	err = hGyro->funcReadRegs(ADD_OUT_X_L, 6, buff);
+	}
     // check in the control register 4 the data alignment (Big Endian or Little Endian)
     //(0: data LSB @ lower address; 1: data MSB @ lower address)
     if (hGyro->Ble == 0)
     {
         for (i = 0; i < 3; i++)
         {
-            val = (int16_t)(((uint16_t)buff[2 * i + 1] << 8) + buff[2 * i]);
-            gVal[i] = AngleCalculate(hGyro, val);
+            val[i] = (int16_t)(((uint16_t)buff[2 * i + 1] << 8) + buff[2 * i]);
+            gVal[i] = AngleCalculate(hGyro, val[i]);
         }
     }
     else
     {
         for (i = 0; i < 3; i++)
         {
-            val = (int16_t)(((uint16_t)buff[2 * i] << 8) + buff[2 * i + 1]);
-            gVal[i] = AngleCalculate(hGyro, val);
+            val[i] = (int16_t)(((uint16_t)buff[2 * i] << 8) + buff[2 * i + 1]);
+            gVal[i] = AngleCalculate(hGyro, val[i]);
         }
     }
-    return gyroOk;
+    hGyro->OutX = val[0];
+    hGyro->OutY = val[1];
+    hGyro->OutZ = val[2];
+
+    return err;
 }
 
 gyroError_t gyroReadStatus(gyro_t* hGyro)//STATUS_REG (27h)
@@ -270,12 +217,20 @@ gyroError_t gyroReadFifoStatus(gyro_t* hGyro)//FIFO_SRC_REG (2Fh)
     uint8_t dataByte = 0;
     gyroError_t err = gyroOk;
 
-    err = hGyro->funcReadRegs(ADD_FIFO_SRC_REG,1,&dataByte);
+    err = hGyro->funcReadRegs(ADD_FIFO_SRC_REG, 1, &dataByte);
     if (err != gyroOk) return err;
     hGyro->FifoWtmStatus = (dataByte & 0x80) >> 7;
     hGyro->FifoOvrnStatus = (dataByte & 0x40) >> 6;
     hGyro->FifoEmpty = (dataByte & 0x20) >> 5;
     hGyro->FifoStored = (dataByte & 0x1F);
+    err = hGyro->funcReadRegs(ADD_CTRL_REG1, 1, &dataByte);
+    if (err != gyroOk) return err;
+    hGyro->Boot = (dataByte & 0x80) >> 7;
+	hGyro->FifoEn = (dataByte & 0x40) >> 6;
+	hGyro->HPFilterEn = (dataByte & 0x10) >> 4;
+	hGyro->Int1SelConf = (dataByte & 0x0C) >> 2;
+	hGyro->OutSelConf = (dataByte & 0x03) >> 0;
+
     return err;
 }
 
@@ -310,28 +265,21 @@ gyroError_t gyroSetOutDataRate(gyro_t* hGyro, drate_t dataRate)//CTRL_REG1 (20h)
     return err;
 }
 
-gyroError_t gyroSetHPFilter(gyro_t* hGyro, gyroHPMode_t mode, gyroHpcf_t freq)//CTRL_REG2 (21h)
+gyroError_t gyroSetHPFilter(gyro_t* hGyro)//CTRL_REG2 (21h)
 {
     uint8_t dataByte = 0;
     gyroError_t err = gyroOk;
 
-    err = hGyro->funcReadRegs(ADD_CTRL_REG2,1,&dataByte);
-    if (err != gyroOk) return err;
-    hGyro->HPFilterMode = (uint8_t)mode;
-    hGyro->HPCutOffCode = (uint8_t)freq;
     dataByte = 0 | (hGyro->HPFilterMode << 4) | hGyro->HPCutOffCode;
-    hGyro->HPCutOff = HPCutoffCalculation(hGyro);
     err = hGyro->funcWriteRegs(ADD_CTRL_REG2, 1, &dataByte);
     return err;
 }
 
-gyroError_t gyroSetFifoMode(gyro_t* hGyro, gyroMode_t mode, uint16_t wtm)//FIFO_CTRL_REG (2Eh)
+gyroError_t gyroSetFifoMode(gyro_t* hGyro)//FIFO_CTRL_REG (2Eh)
 {
     uint8_t dataByte = 0;
     gyroError_t err = gyroOk;
 
-    hGyro->FifoModeSel = mode;
-    hGyro->FifoThreshold = wtm;
     dataByte &= (hGyro->FifoModeSel << 5) | hGyro->FifoThreshold;
     err = hGyro->funcWriteRegs(ADD_FIFO_CTRL_REG, 1, &dataByte);
     return err;
@@ -339,7 +287,7 @@ gyroError_t gyroSetFifoMode(gyro_t* hGyro, gyroMode_t mode, uint16_t wtm)//FIFO_
 
 gyroError_t gyroSetIntMode(gyro_t* hGyro)// CTRL_REG3 (22h), INT1_CFG (30h), INT1_DURATION (38h)
 {
-    int8_t dataByte = 0;
+    uint8_t dataByte = 0;
     gyroError_t err = gyroOk;
 
     //int sources
@@ -355,12 +303,19 @@ gyroError_t gyroSetIntMode(gyro_t* hGyro)// CTRL_REG3 (22h), INT1_CFG (30h), INT
     //int duration
     dataByte = 0 | (hGyro->Int1Wait << 7) | hGyro->Int1Duration;
     err = hGyro->funcWriteRegs(ADD_INT1_DURATION, 1, &dataByte);
+    //int thresholds
+    err = hGyro->funcWriteRegs(ADD_INT1_THS_XH, 1, &hGyro->Int1XHighTr);
+    err = hGyro->funcWriteRegs(ADD_INT1_THS_XL, 1, &hGyro->Int1XLowTr);
+    err = hGyro->funcWriteRegs(ADD_INT1_THS_YH, 1, &hGyro->Int1YHighTr);
+    err = hGyro->funcWriteRegs(ADD_INT1_THS_YL, 1, &hGyro->Int1YLowTr);
+    err = hGyro->funcWriteRegs(ADD_INT1_THS_ZH, 1, &hGyro->Int1ZHighTr);
+    err = hGyro->funcWriteRegs(ADD_INT1_THS_ZL, 1, &hGyro->Int1ZLowTr);
     return err;
 }
 
 gyroError_t gyroSetOutMode(gyro_t* hGyro) // CTRL_REG5 (24h)
 {
-    int8_t dataByte = 0;
+    uint8_t dataByte = 0;
     gyroError_t err = gyroOk;
 
     dataByte = 0 | (hGyro->Boot << 7) | (hGyro->FifoEn << 6) | (hGyro->HPFilterEn << 4) \
@@ -369,11 +324,37 @@ gyroError_t gyroSetOutMode(gyro_t* hGyro) // CTRL_REG5 (24h)
     return err;
 }
 
+gyroError_t gyroReadReg5(gyro_t* hGyro)
+{
+	uint8_t dataByte = 0;
+	gyroError_t err = gyroOk;
+
+	err = hGyro->funcReadRegs(ADD_CTRL_REG5, 1, &dataByte);
+	hGyro->Boot = (dataByte & 0x80) >> 7;
+	hGyro->FifoEn = (dataByte & 0x40) >> 6;
+	hGyro->HPFilterEn = (dataByte & 0x10) >> 4;
+	hGyro->Int1SelConf = (dataByte & 0x0C) >> 2;
+	hGyro->OutSelConf = (dataByte & 0x03) >> 0;
+
+	return err;
+}
+
+
+gyroError_t gyroReadReference(gyro_t* hGyro)
+{
+	uint8_t dataByte = 0;
+	gyroError_t err = gyroOk;
+
+	err = hGyro->funcReadRegs(ADD_REFERENCE, 1, &dataByte);
+
+	return err;
+}
+
 gyroError_t gyroSetBle(gyro_t* hGyro, uint8_t ble)//CTRL_REG4 (23h)
 {
-    int8_t dataByte = 0;
+    uint8_t dataByte = 0;
     gyroError_t err = gyroOk;
-    err = hGyro->funcReadRegs(ADD_CTRL_REG4,1,&dataByte);
+    err = hGyro->funcReadRegs(ADD_CTRL_REG4, 1, &dataByte);
     if (err != gyroOk) return err;
     hGyro->Ble = ble;
     ble = (ble << 6) | 0xBF;
@@ -382,23 +363,20 @@ gyroError_t gyroSetBle(gyro_t* hGyro, uint8_t ble)//CTRL_REG4 (23h)
     return err;
 }
 
-gyroError_t gyroSetFullScale(gyro_t* hGyro, fscale_t type)//CTRL_REG4 (23h)
+gyroError_t gyroSetFullScale(gyro_t* hGyro)//CTRL_REG4 (23h)
 {
-    int8_t dataByte = 0;
+    uint8_t dataByte = 0;
     gyroError_t err = gyroOk;
 
-    err = hGyro->funcReadRegs(ADD_CTRL_REG4,1,&dataByte);
-    if (err != gyroOk) return err;
-    hGyro->FullScale = type;
-    type = (type << 6) | 0xCF;
-    dataByte &= type;
+    dataByte = 0 | (hGyro->Ble << 6) | (hGyro->FullScale << 4) | (hGyro->SelfTestEn << 1) | hGyro->SPIModeSel;
     err = hGyro->funcWriteRegs(ADD_CTRL_REG4, 1, &dataByte);
     return err;
 }
 
 gyroError_t gyroSelfTest(gyro_t* hGyro, uint8_t conf)//CTRL_REG4 (23h)
 {
-    int8_t dataByte = 0;
+    uint8_t dataByte = 0;
+    uint8_t buf[32];
     gyroError_t err = gyroOk;
 
     err = hGyro->funcReadRegs(ADD_CTRL_REG4,1,&dataByte);
@@ -406,7 +384,7 @@ gyroError_t gyroSelfTest(gyro_t* hGyro, uint8_t conf)//CTRL_REG4 (23h)
     dataByte |= conf << 1;
     err = hGyro->funcWriteRegs(ADD_CTRL_REG4, 1, &dataByte);
     if (err != gyroOk) return err;
-    gyroReadAll(hGyro);
+    gyroReadAll(hGyro, buf);
     if (hGyro->SelfTestEn != 0)
     {
         dataByte &= 0x79;//reset ST1-ST0 bits
@@ -417,15 +395,16 @@ gyroError_t gyroSelfTest(gyro_t* hGyro, uint8_t conf)//CTRL_REG4 (23h)
 
 gyroError_t gyroReboot(gyro_t* hGyro)
 {
-    int8_t dataByte = 0;
+    uint8_t dataByte = 0;
+    uint8_t buf[32];
     gyroError_t err = gyroOk;
 
-    err = hGyro->funcReadRegs(ADD_CTRL_REG5,1,&dataByte);
+    err = hGyro->funcReadRegs(ADD_CTRL_REG5, 1, &dataByte);
     if (err != gyroOk) return err;
     dataByte |= 0x80;
     err = hGyro->funcWriteRegs(ADD_CTRL_REG5, 1, &dataByte);
     if (err != gyroOk) return err;
-    gyroReadAll(hGyro);
+    gyroReadAll(hGyro, buf);
     if (hGyro->Boot)
     {
         hGyro->Boot = 0;
@@ -434,6 +413,12 @@ gyroError_t gyroReboot(gyro_t* hGyro)
     }
     return err;
 }
+
+
+
+
+
+
 
 
 
