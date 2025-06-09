@@ -1,9 +1,8 @@
 /* USER CODE BEGIN Header */
 /**
  ******************************************************************************
- * @file    spi.h
- * @brief   This file contains all the function prototypes for
- *          the spi.c file
+ * @file           : usbh_platform.h
+ * @brief          : Header for usbh_platform.c file.
  ******************************************************************************
  * @attention
  *
@@ -17,35 +16,26 @@
  ******************************************************************************
  */
 /* USER CODE END Header */
+
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __SPI_H__
-#define __SPI_H__
+#ifndef __USBH_PLATFORM_H__
+#define __USBH_PLATFORM_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "usb_host.h"
 
-/* USER CODE BEGIN Includes */
+/* USER CODE BEGIN INCLUDE */
 
-/* USER CODE END Includes */
+/* USER CODE END INCLUDE */
 
-extern SPI_HandleTypeDef hspi5;
-
-/* USER CODE BEGIN Private defines */
-
-/* USER CODE END Private defines */
-
-void MX_SPI5_Init(void);
-
-/* USER CODE BEGIN Prototypes */
-
-/* USER CODE END Prototypes */
+void MX_DriverVbusHS(uint8_t state);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __SPI_H__ */
+#endif /* __USBH_PLATFORM_H__ */

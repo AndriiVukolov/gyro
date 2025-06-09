@@ -268,7 +268,7 @@ gyroError_t gyroSetOutDataRate(gyro_t* hGyro, drate_t dataRate)//CTRL_REG1 (20h)
 gyroError_t gyroSetHPFilter(gyro_t* hGyro)//CTRL_REG2 (21h)
 {
     uint8_t dataByte = 0;
-    gyroError_t err = gyroOk;
+    gyroError_t err = gyroOk; 
 
     dataByte = 0 | (hGyro->HPFilterMode << 4) | hGyro->HPCutOffCode;
     err = hGyro->funcWriteRegs(ADD_CTRL_REG2, 1, &dataByte);
