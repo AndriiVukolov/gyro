@@ -313,19 +313,6 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-//void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-//{
-//    if (GPIO_Pin == MEMS_INT1_Pin)
-//    {
-//        intFlag = 1;
-//    }
-//
-//    if (GPIO_Pin == MEMS_INT2_Pin)
-//    {
-//        intFlag = 1;
-//    }
-//
-//}
 static gyroError_t funcReadSPI(uint8_t startAdd, uint16_t len, uint8_t *store)
 {
     HAL_StatusTypeDef err = HAL_OK;

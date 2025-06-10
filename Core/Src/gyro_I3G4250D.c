@@ -7,8 +7,6 @@
  */
 
 #include "gyro_I3G4250D.h"
-#include "stm32f4xx_hal.h"
-#include "spi.h"
 #include <stdint.h>
 #include <math.h>
 

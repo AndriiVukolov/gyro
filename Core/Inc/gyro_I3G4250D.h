@@ -11,7 +11,6 @@
 #define INC_GYRO_I3G4250D_H_
 
 #include <stdint.h>
-#include "gpio.h"
 
 /*Errors*/
 typedef enum
@@ -329,9 +328,7 @@ gyroError_t gyroSetFifoMode(gyro_t* hGyro);
 
 /*@brief Sets interrupts on pins INT1 and INT2
  *  hGyro   - pointer to structure defined Gyro-object
- *  Need to set:
- *
- *
+ *  Gyro-object parameters need to be set in  gyro_t structure
  *  Returns gyroOk (= 0) if parameter written correctly or error code
  * */
 gyroError_t gyroSetIntMode(gyro_t* hGyro);
