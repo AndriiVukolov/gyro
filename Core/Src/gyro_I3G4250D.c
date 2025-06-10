@@ -112,7 +112,7 @@ gyroError_t gyroInit(gyro_t *hGyro)
 
     err = gyroSetOutMode(hGyro);
     err = gyroSetIntMode(hGyro);
-    err =           gyroSetFullScale(hGyro);
+    err = gyroSetFullScale(hGyro);
     err = gyroSetFifoMode(hGyro);
     err = gyroTurnOn(hGyro);
     err = gyroSetHPFilter(hGyro);
