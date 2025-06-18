@@ -49,10 +49,7 @@
 #define ADD_Z_OFS_USR           0x3E
 #define ADD_CTRL7               0x3F
 
-#define ACCEL_CS_GPIO_PIN  GPIO_PIN_3
-#define ACCEL_CS_GPIO_PORT GPIOC
-
-//typedef enum { DISABLE = 0, ENABLE = 1 };
+enum { ACCEL_DISABLE = 0, ACCEL_ENABLE = 1 };
 
 /**@brief Types of accel-object errors */
 typedef enum {

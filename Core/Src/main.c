@@ -189,7 +189,7 @@ int main(void)
     accel_interface_set(&a1, SPI_4);
     accel_bdu_set(&a1, 1);
     //=========================================================FIFO settings
-    accel_autoincrement_set(&a1, DISABLE);
+    accel_autoincrement_set(&a1, ACCEL_DISABLE);
     //accel_fifo_set(&a1, FIFO_OFF, 0);
     accel_fifo_set(&a1, FIFO_CONTIN, 32);
     //accel_slp_mode_set(&a1, 0, 0);

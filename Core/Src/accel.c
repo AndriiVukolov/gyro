@@ -5,8 +5,6 @@
  *      Author: andrii-vukolov
  */
 #include "accel.h"
-#include <stdint.h>
-#include "stm32f4xx.h"
 
 /**
  * @example parameterSet(&acc1, &acc1.pmode, 2);
@@ -104,7 +102,7 @@ accel_error_t accel_int1_set(accel_t *haccel, interrupt_t int1)
     if ((int1.ibit.single_tap_sleep_chg == 1) || (int1.ibit.ff_drdy_t == 1) ||
         (int1.ibit.wu_boot == 1) || (int1.ibit.tap_ovr == 1) ||
         (int1.ibit.sixd_sleep_state == 1)) {
-        err = parameter_set(haccel, &(haccel->interrupts_en), ENABLE);
+        err = parameter_set(haccel, &(haccel->interrupts_en), ACCEL_ENABLE);
     }
 
     err = parameter_set(haccel, &(haccel->int1_drdy), int1.ibit.drdy);
@@ -126,7 +124,7 @@ accel_error_t accel_int2_set(accel_t *haccel, interrupt_t int2)
 
     if ((int2.ibit.sixd_sleep_state == 1) ||
         (int2.ibit.single_tap_sleep_chg == 1)) {
-        err = parameter_set(haccel, &(haccel->interrupts_en), ENABLE);
+        err = parameter_set(haccel, &(haccel->interrupts_en), ACCEL_ENABLE);
     }
 
     err = parameter_set(haccel, &(haccel->int2_drdy), int2.ibit.drdy);
@@ -152,7 +150,7 @@ accel_error_t accel_int_disable(accel_t *haccel)
     err = haccel->data_write(ADD_CTRL5_INT2_PAD_CTRL, 1, &data_buf);
     err = haccel->data_read(ADD_ALL_INT_SRC, 1, &data_buf);
 
-    err = parameter_set(haccel, &(haccel->interrupts_en), DISABLE);
+    err = parameter_set(haccel, &(haccel->interrupts_en), ACCEL_DISABLE);
     return err;
 }
 
@@ -448,9 +446,7 @@ accel_error_t accel_data_get(accel_t *haccel, float *adata)
 
 uint8_t accel_data_ready_get(accel_t *haccel)
 {
-    accel_error_t err      = ACCEL_OK;
-    uint8_t       data_buf = 0;
-    uint8_t       drdy     = 0;
+    uint8_t drdy = 0;
 
     drdy                 = parameter_get(haccel, &haccel->drdy);
     haccel->drdy.is_read = 0;
@@ -478,7 +474,8 @@ uint8_t accel_id_get(accel_t *haccel)
 accel_error_t accel_sixd_orientation_get(accel_t *haccel, uint8_t *orient_byte)
 {
     accel_error_t err = ACCEL_OK;
-    err               = haccel->data_read(ADD_SIXD_SRC, 1, orient_byte);
+
+    err = haccel->data_read(ADD_SIXD_SRC, 1, orient_byte);
 
     haccel->xl.value          = (*orient_byte & 0x01) >> 0;
     haccel->xh.value          = (*orient_byte & 0x02) >> 1;
@@ -494,6 +491,7 @@ accel_error_t accel_sixd_orientation_get(accel_t *haccel, uint8_t *orient_byte)
     haccel->zl.is_read        = 1;
     haccel->zh.is_read        = 1;
     haccel->ia_6d_src.is_read = 1;
+
     return err;
 }
 
