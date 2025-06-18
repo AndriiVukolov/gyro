@@ -28,7 +28,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "gyro_I3G4250D.h"
+#include "accel.h"
 #include "stm32f4xx_hal_def.h"
+#include "stm32f4xx.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -52,30 +54,51 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-gyro_t g1 = { 0 };
+static gyro_t  g1 = { 0 };
+static accel_t a1 = { 0 };
 
-uint8_t      receiveBuf[32]  = { 0 };
-uint8_t      transmitBuf[32] = { 0 };
-uint8_t      intFlag         = 0;
-float        bias[3]         = { 0 };
-gyroError_t  gerr            = gyroOk;
-unsigned int indicator       = 0;
-uint8_t      slaveAdd        = 0b11010000;
-uint8_t      timerIntFlag    = 1;
-uint16_t     timCounter      = 0;
-uint8_t      dummyByte       = 0;
+static uint8_t       receiveBuf[32]  = { 0 };
+static uint8_t       transmitBuf[32] = { 0 };
+static uint8_t       intFlag         = 0;
+static float         gyro_bias[3]    = { 0 };
+static float         accel_bias[3]   = { 0 };
+static gyroError_t   gerr            = gyroOk;
+static accel_error_t aerr            = ACCEL_OK;
+static unsigned int  indicator       = 0;
+static uint8_t       slaveAdd        = 0b11010000;
+static uint8_t       timerIntFlag    = 1;
+static uint16_t      timCounter      = 0;
+static uint8_t       dummyByte       = 0;
+static uint8_t       accel_drdy      = 0;
+
+static interrupt_t  aint1, aint2;
+static tap_dir_t    a1_tap_single_dir, a1_tap_double_dir;
+static tap_thr_t    a1_tap_single_thr, a1_tap_double_thr;
+static fifo_state_t fst;
+static uint8_t      data_qty;
+static uint8_t      int_src[6];
+static uint8_t      accel_id;
+static uint8_t      accel_drdy_flag = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
-static void        print(const char *str);
-static gyroError_t funcReadSPI(uint8_t startAdd, uint16_t len, uint8_t *store);
-static gyroError_t funcWriteSPI(uint8_t startAdd, uint16_t len, uint8_t *store);
-static void        GYRO_SPI_MspInit(SPI_HandleTypeDef *hspi);
-static void        GYRO_SPI_Init(void);
-static void        GYRO_IO_Init(void);
+static void print(const char *str);
+static gyroError_t
+func_read_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store);
+static gyroError_t
+func_write_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store);
+static accel_error_t
+func_read_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store);
+static accel_error_t
+func_write_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store);
+
+static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi);
+static void PERIF_SPI_Init(void);
+static void PERIF_IO_Init(void);
 
 /* USER CODE END PFP */
 
@@ -119,73 +142,69 @@ int main(void)
     MX_CRC_Init();
     MX_SPI5_Init();
     /* USER CODE BEGIN 2 */
+    //=============================================================GYRO Init
+    PERIF_IO_Init();
 
-    GYRO_IO_Init();
-
-    g1.funcReadRegs  = funcReadSPI;
-    g1.funcWriteRegs = funcWriteSPI;
-
-    //==========================================================GYRO SETTINGS
-
-    //=====================REG1==============
-    g1.DataRate    = ODR100;
-    g1.BandWidth   = 3;
-    g1.PDownModeEn = 1;
-    g1.Zen         = 1;
-    g1.Yen         = 1;
-    g1.Xen         = 1;
-    //=====================REG2==============
-    g1.HPFilterMode =
-            0; //Normal mode (reset by reading the REFERENCE/DATACAPTURE (25h) register)
-    g1.HPCutOffCode = 0;
-    //=====================REG3==============
-    g1.Int1En       = DISABLE;
-    g1.Int1Boot     = DISABLE;
-    g1.IntActConfig = 0;
-    g1.Int2En       = DISABLE;
-    g1.FIFOOvrnEn   = DISABLE;
-    g1.FIFOEmptyEn  = DISABLE;
-    //=====================REG4==============
-    g1.Ble        = 0;
-    g1.FullScale  = FS500;
-    g1.SelfTestEn = DISABLE;
-    g1.SPIModeSel = 0;
-    //=====================REG5==============
-    g1.Boot        = 0;
-    g1.FifoEn      = 0;
-    g1.HPFilterEn  = 0;
-    g1.Int1SelConf = 0;
-    g1.OutSelConf  = 0;
-    //=====================INT1_CFG=========
-    g1.Andor = 0;
-    g1.Lir   = 0;
-    g1.ZHIE  = 0;
-    g1.ZLIE  = 0;
-    g1.YHIE  = 0;
-    g1.YLIE  = 0;
-    g1.XHIE  = 0;
-    g1.XLIE  = 0;
-    //=====================INT1_DURATION====
-    g1.Int1Wait     = 0;
-    g1.Int1Duration = 1;
-    //=====================INT1_THRESHOLDS==
-    g1.Int1XHighTr = 0;
-    g1.Int1XLowTr  = 0;
-    g1.Int1YHighTr = 0;
-    g1.Int1YLowTr  = 0;
-    g1.Int1ZHighTr = 0;
-    g1.Int1ZLowTr  = 0;
-    //===================FIFO MODE SELECTION
-    g1.FifoModeSel = 0;
-    //=====================HighPath Filter Mode
-    g1.HPFilterMode = HPNormal;
-    g1.HPCutOffCode = HPCF0;
-
-    //==========================================================END OF GYRO SETTINGS
-
-    gerr = gyroInit(&g1);
+    g1.funcReadRegs  = func_read_gyro_spi;
+    g1.funcWriteRegs = func_write_gyro_spi;
+    gerr             = gyroInit(&g1);
     if (gerr != gyroOk)
         print("Gyro init error! \r\n");
+    //==========================================================END OF GYRO INIT
+
+    //=============================================================ACCEL INIT
+
+    a1.data_write = func_write_accel_spi;
+    a1.data_read  = func_read_accel_spi;
+    aint1.ibyte   = 0;
+    //aint1.ibit.drdy         = 1;
+    aint2.ibyte             = 0;
+    a1_tap_single_dir.cbyte = 7; // all directions 0b00000111
+    a1_tap_double_dir.cbyte = 7; // all directions
+
+    a1_tap_single_thr.x_thr = 4; // 4/32 = 1/8g
+    a1_tap_single_thr.y_thr = 4;
+    a1_tap_single_thr.z_thr = 4;
+
+    a1_tap_double_thr.x_thr = 4; // 4/32 = 1/8g
+    a1_tap_double_thr.y_thr = 4;
+    a1_tap_double_thr.z_thr = 4;
+
+    aerr = accel_init(&a1); // set defines
+
+    accel_filter_set(&a1, 0, 0, fs_4); //Filter mode set
+    accel_int1_set(&a1, aint1);        //Interrupt 1 set
+    accel_int2_set(&a1, aint2);        //Interrupt 2 set
+    //    accel_free_fall_set(&a1, FF_250, 1); //Free fall detection set
+    //    accel_wake_up_set(&a1, 16, 2);       //Wake up mode set
+    accel_int_mode_set(&a1, PULSED); //Interrupt mode set
+                                     //    accel_single_tap_set(&a1,
+    //                         &a1_tap_single_dir,
+    //                         &a1_tap_single_thr,
+    //                         0,
+    //                         0,
+    //                         4);                   //Single tap set
+    //    accel_orientation_param_set(&a1, STHR_60); //Orientation detection set
+    accel_int_disable(&a1);
+    accel_interface_set(&a1, SPI_4);
+    accel_bdu_set(&a1, 1);
+    //=========================================================FIFO settings
+    accel_autoincrement_set(&a1, ACCEL_DISABLE);
+    //accel_fifo_set(&a1, FIFO_OFF, 0);
+    accel_fifo_set(&a1, FIFO_CONTIN, 32);
+    //accel_slp_mode_set(&a1, 0, 0);
+    //=========================================================Turn on accel
+    accel_power_mode_set(&a1,
+                         LOW_POWER_MODE,
+                         LP_MODE_2,
+                         IPM_50,
+                         LN_OFF); //Power mode set
+
+    accel_id = accel_id_get(&a1);
+
+    if (aerr != ACCEL_OK)
+        print("Accel init error! \r\n");
+    //==========================================================END OF ACCEL INIT
 
     /* USER CODE END 2 */
 
@@ -195,7 +214,7 @@ int main(void)
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
-
+        print(CUR_HIDE);
         if (indicator < 10000)
             indicator++;
         else
@@ -208,7 +227,21 @@ int main(void)
         //	  gerr = g1.funcReadRegs(ADD_REFERENCE, 1, &dummyByte);
         //	  gerr = gyroReadAll(&g1, receiveBuf);
         //	  gerr = g1.funcReadRegs(ADD_CTRL_REG1, 25, receiveBuf);
-        gerr = gyroReadVal(&g1, bias);
+        //gerr = gyroReadVal(&g1, gyro_bias);
+
+        //fst = accel_fifo_state_get(&a1, &data_qty);
+
+        //accel_slp_mode_set(&a1, 1, 1);
+
+        //        accel_drdy_flag = accel_data_ready_get(&a1);
+        //        if (accel_drdy_flag == 0) {
+        //        	aerr            = accel_data_get(&a1, accel_bias);
+        //            accel_drdy_flag = 0;
+        //        };
+
+        aerr = accel_data_get(&a1, accel_bias);
+
+        //accel_drdy = accel_data_ready_get(&a1);
 
         //      gerr = gyroReadStatus(&g1);
         //      if (gerr == gyroOk) sprintf(strBuf, "  %u|%u|%u|%u|%u|%u|%u|%u|  \r", g1.zyxor, g1.zor, g1.yor, g1.xor, g1.zyxda, g1.zda, g1.yda, g1.xda);
@@ -224,10 +257,13 @@ int main(void)
 
         if (gerr == gyroOk)
             sprintf((char *)strBuf,
-                    " %-.2f|%-.2f|%-.2f       \r",
-                    bias[0],
-                    bias[1],
-                    bias[2]);
+                    " %.2f|%.2f|%.2f  *** %u| ID - %u   \r",
+                    accel_bias[0],
+                    accel_bias[1],
+                    accel_bias[2],
+
+                    indicator,
+                    accel_id);
         //      if (gerr == gyroOk) sprintf(strBuf, " <%u>  %u|%u|%u  %u         \r", g1.Id, g1.OutX, g1.OutY, g1.OutZ, indicator++);
 
         //      if (gerr == gyroOk)
@@ -245,7 +281,7 @@ int main(void)
         //      }
         else
             sprintf(strBuf,
-                    "  GYRO read error!                                                 \r");
+                    "  ACCEL read error!                                                 \r");
         //      memset(receiveBuf, 0, sizeof(receiveBuf));
         //      if (g1.zyxor)
         //      {
@@ -256,7 +292,7 @@ int main(void)
 
         print(strBuf);
         memset(strBuf, 0, sizeof(strBuf));
-        HAL_Delay(500);
+        HAL_Delay(100);
         //      if (timerIntFlag == 1)
         //      {
         //    	  timerIntFlag = 0;
@@ -270,6 +306,7 @@ int main(void)
         //    	  }
         //      }
         //
+        print(CUR_SHOW);
     }
     /* USER CODE END 3 */
 }
@@ -319,7 +356,8 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-static gyroError_t funcReadSPI(uint8_t startAdd, uint16_t len, uint8_t *store)
+static gyroError_t
+func_read_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store)
 {
     HAL_StatusTypeDef err    = HAL_OK;
     gyroError_t       gerr   = gyroOk;
@@ -332,7 +370,7 @@ static gyroError_t funcReadSPI(uint8_t startAdd, uint16_t len, uint8_t *store)
         txByte = (READ << 7) | (SINGLE << 6) | (startAdd & 0x3F);
     }
 
-    SPI_EN();
+    GYRO_SPI_EN();
     err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
 
     for (uint8_t x = 0; x < len; x++) {
@@ -341,21 +379,22 @@ static gyroError_t funcReadSPI(uint8_t startAdd, uint16_t len, uint8_t *store)
         store[x] = rxByte;
         rxByte   = 0;
     }
-    SPI_DIS();
+    GYRO_SPI_DIS();
     if (err != HAL_OK)
         gerr = gyroCommError;
 
     return gerr;
 }
 
-static gyroError_t funcWriteSPI(uint8_t startAdd, uint16_t len, uint8_t *store)
+static gyroError_t
+func_write_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store)
 {
     HAL_StatusTypeDef err    = HAL_OK;
     gyroError_t       gerr   = gyroOk;
     uint8_t           rxByte = 0;
     uint8_t           txByte = 0;
 
-    SPI_EN();
+    GYRO_SPI_EN();
     if (len > 1) {
         txByte = (WRITE << 7) | (MULTIPLY << 6) | (startAdd & 0x3F);
     } else {
@@ -367,11 +406,12 @@ static gyroError_t funcWriteSPI(uint8_t startAdd, uint16_t len, uint8_t *store)
         rxByte = 0;
         err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
     }
-    SPI_DIS();
+    GYRO_SPI_DIS();
     if (err != HAL_OK)
         gerr = gyroCommError;
     return gerr;
 }
+
 void print(const char *str)
 {
     if (HAL_UART_Transmit(&huart1, (const uint8_t *)str, strlen(str), 10) !=
@@ -380,7 +420,63 @@ void print(const char *str)
     }
 }
 
-static void GYRO_SPI_MspInit(SPI_HandleTypeDef *hspi)
+static accel_error_t
+func_read_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store)
+{
+    HAL_StatusTypeDef err    = HAL_OK;
+    gyroError_t       gerr   = gyroOk;
+    uint8_t           rxByte = 0;
+    uint8_t           txByte = 0;
+
+    if (len > 1) {
+        txByte = (READ << 7) | (MULTIPLY << 6) | (startAdd & 0x3F);
+    } else {
+        txByte = (READ << 7) | (SINGLE << 6) | (startAdd & 0x3F);
+    }
+
+    ACCEL_SPI_EN();
+    err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
+
+    for (uint8_t x = 0; x < len; x++) {
+        txByte = 0;
+        err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
+        store[x] = rxByte;
+        rxByte   = 0;
+    }
+    ACCEL_SPI_DIS();
+    if (err != HAL_OK)
+        gerr = gyroCommError;
+
+    return gerr;
+}
+
+static accel_error_t
+func_write_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store)
+{
+    HAL_StatusTypeDef err    = HAL_OK;
+    gyroError_t       gerr   = gyroOk;
+    uint8_t           rxByte = 0;
+    uint8_t           txByte = 0;
+
+    ACCEL_SPI_EN();
+    if (len > 1) {
+        txByte = (WRITE << 7) | (MULTIPLY << 6) | (startAdd & 0x3F);
+    } else {
+        txByte = (WRITE << 7) | (SINGLE << 6) | (startAdd & 0x3F);
+    }
+    err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
+    for (uint8_t x = 0; x < len; x++) {
+        txByte = store[x];
+        rxByte = 0;
+        err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
+    }
+    ACCEL_SPI_DIS();
+    if (err != HAL_OK)
+        gerr = gyroCommError;
+    return gerr;
+}
+
+static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
 
@@ -399,7 +495,7 @@ static void GYRO_SPI_MspInit(SPI_HandleTypeDef *hspi)
     HAL_GPIO_Init(GPIOF, &GPIO_InitStructure);
 }
 
-static void GYRO_SPI_Init(void)
+static void PERIF_SPI_Init(void)
 {
     //  if (HAL_SPI_GetState(&hspi5) == HAL_SPI_STATE_RESET)
     //  {
@@ -426,11 +522,11 @@ static void GYRO_SPI_Init(void)
     hspi5.Init.TIMode         = SPI_TIMODE_DISABLED;
     hspi5.Init.Mode           = SPI_MODE_MASTER;
 
-    GYRO_SPI_MspInit(&hspi5);
+    PERIF_SPI_MspInit(&hspi5);
     HAL_SPI_Init(&hspi5);
     //  }
 }
-static void GYRO_IO_Init(void)
+static void PERIF_IO_Init(void)
 {
     GPIO_InitTypeDef GYRO_GPIO_InitStructure;
 
@@ -441,10 +537,24 @@ static void GYRO_IO_Init(void)
     GYRO_GPIO_InitStructure.Mode  = GPIO_MODE_OUTPUT_PP;
     GYRO_GPIO_InitStructure.Pull  = GPIO_NOPULL;
     GYRO_GPIO_InitStructure.Speed = GPIO_SPEED_MEDIUM;
-    HAL_GPIO_Init(GYRO_CS_GPIO_PORT, &GYRO_GPIO_InitStructure);
+    HAL_GPIO_Init(GYRO_CS_PORT, &GYRO_GPIO_InitStructure);
+
+    GYRO_SPI_DIS();
+
+    GPIO_InitTypeDef ACCEL_GPIO_InitStructure;
+
+    /* Configure the Gyroscope Control pins ------------------------------------*/
+    /* Enable CS GPIO clock and Configure GPIO PIN for Gyroscope Chip select */
+    ACCEL_CS_GPIO_CLK_ENABLE();
+    ACCEL_GPIO_InitStructure.Pin   = ACCEL_CS_PIN;
+    ACCEL_GPIO_InitStructure.Mode  = GPIO_MODE_OUTPUT_PP;
+    ACCEL_GPIO_InitStructure.Pull  = GPIO_NOPULL;
+    ACCEL_GPIO_InitStructure.Speed = GPIO_SPEED_MEDIUM;
+    HAL_GPIO_Init(ACCEL_CS_PORT, &ACCEL_GPIO_InitStructure);
 
     /* Deselect: Chip Select high */
-    GYRO_CS_HIGH();
+
+    ACCEL_SPI_DIS();
 
     /* Enable INT1, INT2 GPIO clock and Configure GPIO PINs to detect Interrupts */
     GYRO_INT_GPIO_CLK_ENABLE();
@@ -454,7 +564,15 @@ static void GYRO_IO_Init(void)
     GYRO_GPIO_InitStructure.Pull  = GPIO_NOPULL;
     HAL_GPIO_Init(GYRO_INT_GPIO_PORT, &GYRO_GPIO_InitStructure);
 
-    GYRO_SPI_Init();
+    /* Enable INT1, INT2 GPIO clock and Configure GPIO PINs to detect Interrupts */
+    ACCEL_INT_GPIO_CLK_ENABLE();
+    ACCEL_GPIO_InitStructure.Pin   = ACCEL_INT1_PIN | ACCEL_INT2_PIN;
+    ACCEL_GPIO_InitStructure.Mode  = GPIO_MODE_INPUT;
+    ACCEL_GPIO_InitStructure.Speed = GPIO_SPEED_FAST;
+    ACCEL_GPIO_InitStructure.Pull  = GPIO_NOPULL;
+    HAL_GPIO_Init(ACCEL_INT_GPIO_PORT, &ACCEL_GPIO_InitStructure);
+
+    PERIF_SPI_Init();
 }
 /* USER CODE END 4 */
 
