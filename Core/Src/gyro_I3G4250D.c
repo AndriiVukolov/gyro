@@ -9,6 +9,7 @@
 #include "gyro_I3G4250D.h"
 #include <stdint.h>
 #include <math.h>
+#include "stm32f4xx.h"
 
 static uint16_t
 LPCutoffCalculation(gyro_t *hGyro) //table 21 (result need to divide by 10)
@@ -109,6 +110,64 @@ gyroError_t gyroReadAll(gyro_t *hGyro, uint8_t *regs)
 gyroError_t gyroInit(gyro_t *hGyro)
 {
     gyroError_t err;
+
+    //==========================================================GYRO SETTINGS
+
+    //=====================REG1==============
+    hGyro->DataRate    = ODR100;
+    hGyro->BandWidth   = 3;
+    hGyro->PDownModeEn = 1;
+    hGyro->Zen         = 1;
+    hGyro->Yen         = 1;
+    hGyro->Xen         = 1;
+    //=====================REG2==============
+    hGyro->HPFilterMode =
+            0; //Normal mode (reset by reading the REFERENCE/DATACAPTURE (25h) register)
+    hGyro->HPCutOffCode = 0;
+    //=====================REG3==============
+    hGyro->Int1En       = DISABLE;
+    hGyro->Int1Boot     = DISABLE;
+    hGyro->IntActConfig = 0;
+    hGyro->Int2En       = DISABLE;
+    hGyro->FIFOOvrnEn   = DISABLE;
+    hGyro->FIFOEmptyEn  = DISABLE;
+    //=====================REG4==============
+    hGyro->Ble        = 0;
+    hGyro->FullScale  = FS500;
+    hGyro->SelfTestEn = DISABLE;
+    hGyro->SPIModeSel = 0;
+    //=====================REG5==============
+    hGyro->Boot        = 0;
+    hGyro->FifoEn      = 0;
+    hGyro->HPFilterEn  = 0;
+    hGyro->Int1SelConf = 0;
+    hGyro->OutSelConf  = 0;
+    //=====================INT1_CFG=========
+    hGyro->Andor = 0;
+    hGyro->Lir   = 0;
+    hGyro->ZHIE  = 0;
+    hGyro->ZLIE  = 0;
+    hGyro->YHIE  = 0;
+    hGyro->YLIE  = 0;
+    hGyro->XHIE  = 0;
+    hGyro->XLIE  = 0;
+    //=====================INT1_DURATION====
+    hGyro->Int1Wait     = 0;
+    hGyro->Int1Duration = 1;
+    //=====================INT1_THRESHOLDS==
+    hGyro->Int1XHighTr = 0;
+    hGyro->Int1XLowTr  = 0;
+    hGyro->Int1YHighTr = 0;
+    hGyro->Int1YLowTr  = 0;
+    hGyro->Int1ZHighTr = 0;
+    hGyro->Int1ZLowTr  = 0;
+    //===================FIFO MODE SELECTION
+    hGyro->FifoModeSel = 0;
+    //=====================HighPath Filter Mode
+    hGyro->HPFilterMode = HPNormal;
+    hGyro->HPCutOffCode = HPCF0;
+
+    //==========================================================END OF GYRO SETTINGS
 
     err = gyroSetOutMode(hGyro);
     err = gyroSetIntMode(hGyro);
