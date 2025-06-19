@@ -34,6 +34,7 @@
 #include "stm32f4xx.h"
 #include <string.h>
 #include <stdio.h>
+#include "task.h"
 
 /* USER CODE END Includes */
 
@@ -81,6 +82,9 @@ static uint8_t      int_src[6];
 static uint8_t      accel_id;
 static uint8_t      accel_drdy_flag = 0;
 
+static const char *task_text_1 = "Task 1 \r\n";
+static const char *task_text_2 = "Task 2 \r\n";
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,8 +106,7 @@ static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi);
 static void PERIF_SPI_Init(void);
 static void PERIF_IO_Init(void);
 
-void func_test_task_1(void *pvParameters);
-void func_test_task_2(void *pvParameters);
+static void func_test_task(void *pvParameters);
 
 /* USER CODE END PFP */
 
@@ -216,16 +219,16 @@ int main(void)
     /* Call init function for freertos objects (in cmsis_os2.c) */
     MX_FREERTOS_Init();
 
-    xTaskCreate(func_test_task_1,
+    xTaskCreate(func_test_task,
                 "TASK1",
-                configMINIMAL_STACK_SIZE + 1,
-                NULL,
+                configMINIMAL_STACK_SIZE,
+                (void *)task_text_1,
                 1,
                 NULL);
-    xTaskCreate(func_test_task_2,
+    xTaskCreate(func_test_task,
                 "TASK2",
-                configMINIMAL_STACK_SIZE + 1,
-                NULL,
+                configMINIMAL_STACK_SIZE,
+                (void *)task_text_2,
                 1,
                 NULL);
 
@@ -316,22 +319,19 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-void func_test_task_1(void *pvParameters)
+void func_test_task(void *pvParameters)
 {
+    char        *ptr_str;
+    portTickType start_tick;
+
+    ptr_str    = (char *)pvParameters;
+    start_tick = xTaskGetTickCount();
 
     while (1) {
         HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
-        print("TASK1\n\r");
-        vTaskDelay(1);
-    }
-}
-void func_test_task_2(void *pvParameters)
-{
-
-    while (1) {
-        HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-        print("TASK2\n\r");
-        vTaskDelay(1);
+        print(ptr_str);
+        //vTaskDelay(500 / portTICK_RATE_MS);
+        vTaskDelayUntil(&start_tick, (500 / portTICK_RATE_MS));
     }
 }
 
