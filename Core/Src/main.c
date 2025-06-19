@@ -82,9 +82,11 @@ static uint8_t      int_src[6];
 static uint8_t      accel_id;
 static uint8_t      accel_drdy_flag = 0;
 
-static const char *task_text_1 = "Task 1 \r\n";
-static const char *task_text_2 = "Task 2 \r\n";
+static const char *task_text_1 = "Task 1 ";
+static const char *task_text_2 = "Task 2 ";
 static const char *task_text_3 = "Periodic Task 3 \r\n";
+
+uint32_t counter = 0;
 
 /* USER CODE END PV */
 
@@ -330,13 +332,15 @@ void SystemClock_Config(void)
 void func_test_task(void *pvParameters)
 {
     char *ptr_str;
+    char  str_buf[50] = { 0 };
 
     ptr_str = (char *)pvParameters;
 
     while (1) {
         HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
-        print(ptr_str);
-        vTaskDelay(250 / portTICK_RATE_MS);
+        sprintf(str_buf, "%s / %lu \r\n", ptr_str, counter);
+        print(str_buf);
+        vTaskDelay(pdMS_TO_TICKS(250));
     }
 }
 
@@ -354,6 +358,14 @@ static void func_test_periodic(void *pvParameters)
         //vTaskDelay(500 / portTICK_RATE_MS);
         vTaskDelayUntil(&start_tick, pdMS_TO_TICKS(700));
     }
+}
+
+void vApplicationIdleHook(void)
+{
+    if (counter < 0xFFFFFFFF)
+        counter++;
+    else
+        counter = 0;
 }
 
 static gyroError_t
