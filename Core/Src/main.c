@@ -84,6 +84,7 @@ static uint8_t      accel_drdy_flag = 0;
 
 static const char *task_text_1 = "Task 1 \r\n";
 static const char *task_text_2 = "Task 2 \r\n";
+static const char *task_text_3 = "Periodic Task 3 \r\n";
 
 /* USER CODE END PV */
 
@@ -107,6 +108,7 @@ static void PERIF_SPI_Init(void);
 static void PERIF_IO_Init(void);
 
 static void func_test_task(void *pvParameters);
+static void func_test_periodic(void *pvParameters);
 
 /* USER CODE END PFP */
 
@@ -231,6 +233,12 @@ int main(void)
                 (void *)task_text_2,
                 1,
                 NULL);
+    xTaskCreate(func_test_periodic,
+                "TASK3",
+                configMINIMAL_STACK_SIZE,
+                (void *)task_text_3,
+                2,
+                NULL);
 
     /* Start scheduler */
     osKernelStart();
@@ -321,6 +329,19 @@ void SystemClock_Config(void)
 
 void func_test_task(void *pvParameters)
 {
+    char *ptr_str;
+
+    ptr_str = (char *)pvParameters;
+
+    while (1) {
+        HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
+        print(ptr_str);
+        vTaskDelay(250 / portTICK_RATE_MS);
+    }
+}
+
+static void func_test_periodic(void *pvParameters)
+{
     char        *ptr_str;
     portTickType start_tick;
 
@@ -328,10 +349,10 @@ void func_test_task(void *pvParameters)
     start_tick = xTaskGetTickCount();
 
     while (1) {
-        HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
+        HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
         print(ptr_str);
         //vTaskDelay(500 / portTICK_RATE_MS);
-        vTaskDelayUntil(&start_tick, (500 / portTICK_RATE_MS));
+        vTaskDelayUntil(&start_tick, pdMS_TO_TICKS(700));
     }
 }
 
