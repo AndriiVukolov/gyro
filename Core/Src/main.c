@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "crc.h"
 #include "spi.h"
 #include "tim.h"
@@ -43,7 +44,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define mainDELAY_LOOP_COUNT 0xFFFFFFFF
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -84,6 +85,7 @@ static uint8_t      accel_drdy_flag = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void print(const char *str);
@@ -99,6 +101,9 @@ func_write_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store);
 static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi);
 static void PERIF_SPI_Init(void);
 static void PERIF_IO_Init(void);
+
+void func_test_task_1(void *pvParameters);
+void func_test_task_2(void *pvParameters);
 
 /* USER CODE END PFP */
 
@@ -208,105 +213,60 @@ int main(void)
 
     /* USER CODE END 2 */
 
+    /* Call init function for freertos objects (in cmsis_os2.c) */
+    MX_FREERTOS_Init();
+
+    xTaskCreate(func_test_task_1,
+                "TASK1",
+                configMINIMAL_STACK_SIZE + 1,
+                NULL,
+                1,
+                NULL);
+    xTaskCreate(func_test_task_2,
+                "TASK2",
+                configMINIMAL_STACK_SIZE + 1,
+                NULL,
+                1,
+                NULL);
+
+    /* Start scheduler */
+    osKernelStart();
+
+    /* We should never get here as control is now taken by the scheduler */
+
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1) {
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
-        print(CUR_HIDE);
-        if (indicator < 10000)
-            indicator++;
-        else
-            indicator = 0;
-        char strBuf[200] = { 0 };
+        //        print(CUR_HIDE);
+        //        if (indicator < 10000)
+        //            indicator++;
+        //        else
+        //            indicator = 0;
+        //        char strBuf[200] = { 0 };
 
-        //	  gerr = gyroReadID(&g1);
-        //	  gerr = gyroReadIntStatus(&g1);
-        //	  gerr = gyroReadReference(&g1);
-        //	  gerr = g1.funcReadRegs(ADD_REFERENCE, 1, &dummyByte);
-        //	  gerr = gyroReadAll(&g1, receiveBuf);
-        //	  gerr = g1.funcReadRegs(ADD_CTRL_REG1, 25, receiveBuf);
-        //gerr = gyroReadVal(&g1, gyro_bias);
-
-        //fst = accel_fifo_state_get(&a1, &data_qty);
-
-        //accel_slp_mode_set(&a1, 1, 1);
-
-        //        accel_drdy_flag = accel_data_ready_get(&a1);
-        //        if (accel_drdy_flag == 0) {
-        //        	aerr            = accel_data_get(&a1, accel_bias);
-        //            accel_drdy_flag = 0;
-        //        };
-
-        aerr = accel_data_get(&a1, accel_bias);
-
-        //accel_drdy = accel_data_ready_get(&a1);
-
-        //      gerr = gyroReadStatus(&g1);
-        //      if (gerr == gyroOk) sprintf(strBuf, "  %u|%u|%u|%u|%u|%u|%u|%u|  \r", g1.zyxor, g1.zor, g1.yor, g1.xor, g1.zyxda, g1.zda, g1.yda, g1.xda);
-        //      else sprintf(strBuf, "  GYRO Error!                 \r");
-
-        //      gerr = g1.funcReadRegs(ADD_OUT_X_L, 1, &receiveBuf[0]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_Y_L, 1, &receiveBuf[2]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_Y_H, 1, &receiveBuf[3]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_Z_L, 1, &receiveBuf[4]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_Z_H, 1, &receiveBuf[5]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_X_L, 1, &receiveBuf[0]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_X_H, 1, &receiveBuf[1]);
-
-        if (gerr == gyroOk)
-            sprintf((char *)strBuf,
-                    " %.2f|%.2f|%.2f  *** %u| ID - %u   \r",
-                    accel_bias[0],
-                    accel_bias[1],
-                    accel_bias[2],
-
-                    indicator,
-                    accel_id);
-        //      if (gerr == gyroOk) sprintf(strBuf, " <%u>  %u|%u|%u  %u         \r", g1.Id, g1.OutX, g1.OutY, g1.OutZ, indicator++);
-
-        //      if (gerr == gyroOk)
-        //      {
-        //    	  char oneByte[4] = {0};
+        //        if (gerr == gyroOk)
+        //            sprintf((char *)strBuf,
+        //                    " %.2f|%.2f|%.2f  *** %u| ID - %u   \r",
+        //                    accel_bias[0],
+        //                    accel_bias[1],
+        //                    accel_bias[2],
         //
-        //    	  sprintf(strBuf, "<%u> ", g1.Id);
-        //    	  for (uint8_t y = 0; y < 30; y++)
-        //    	  {
-        //    		  sprintf(oneByte, "%2X|", receiveBuf[y]);
-        //    		  strcat(strBuf, oneByte);
-        //    	  }
-        //    	  sprintf(oneByte, "%u\r", indicator);
-        //		  strcat(strBuf, oneByte);
-        //      }
-        else
-            sprintf(strBuf,
-                    "  ACCEL read error!                                                 \r");
-        //      memset(receiveBuf, 0, sizeof(receiveBuf));
-        //      if (g1.zyxor)
-        //      {
-        //          sprintf(strBuf, "  GYRO overrun!  x:%u, y:%u, z:%u \r", g1.xor, g1.yor, g1.zor);
-        //      }
-
-        //print(" \r");
-
-        print(strBuf);
-        memset(strBuf, 0, sizeof(strBuf));
-        HAL_Delay(100);
-        //      if (timerIntFlag == 1)
-        //      {
-        //    	  timerIntFlag = 0;
-        //    	  timCounter++;
-        HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
-        HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-        //    	  if (timCounter == 1000)
-        //    	  {
-        //    		  timCounter = 0;
+        //                    indicator,
+        //                    accel_id);
         //
-        //    	  }
-        //      }
+        //        else
+        //            sprintf(strBuf,
+        //                    "  ACCEL read error!                                                 \r");
         //
-        print(CUR_SHOW);
+        //        print(strBuf);
+
+        //        memset(strBuf, 0, sizeof(strBuf));
+        //        HAL_Delay(100);
+
+        //        print(CUR_SHOW);
     }
     /* USER CODE END 3 */
 }
@@ -355,6 +315,25 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void func_test_task_1(void *pvParameters)
+{
+
+    while (1) {
+        HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
+        print("TASK1\n\r");
+        vTaskDelay(1);
+    }
+}
+void func_test_task_2(void *pvParameters)
+{
+
+    while (1) {
+        HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+        print("TASK2\n\r");
+        vTaskDelay(1);
+    }
+}
 
 static gyroError_t
 func_read_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store)
