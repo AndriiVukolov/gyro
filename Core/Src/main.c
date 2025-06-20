@@ -86,6 +86,11 @@ static const char *task_text_1 = "Task 1 ";
 static const char *task_text_2 = "Task 2 ";
 static const char *task_text_3 = "Periodic Task 3 \r\n";
 
+static task_param_t par_1 = { " Task 1 ", 3 };
+static task_param_t par_2 = { " Task 2 ", 4 };
+
+static int8_t sign_factor = 1;
+
 uint32_t counter = 0;
 
 /* USER CODE END PV */
@@ -109,8 +114,10 @@ static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi);
 static void PERIF_SPI_Init(void);
 static void PERIF_IO_Init(void);
 
-static void func_test_task(void *pvParameters);
-static void func_test_periodic(void *pvParameters);
+static void         func_test_task(void *pvParameters);
+static void         func_test_task_2(void *pvParameters);
+static TaskHandle_t task_handle_1;
+static TaskHandle_t task_handle_2;
 
 /* USER CODE END PFP */
 
@@ -225,22 +232,16 @@ int main(void)
 
     xTaskCreate(func_test_task,
                 "TASK1",
-                configMINIMAL_STACK_SIZE,
-                (void *)task_text_1,
+                configMINIMAL_STACK_SIZE + 100,
+                (void *)&par_1,
                 1,
-                NULL);
+                &task_handle_1);
     xTaskCreate(func_test_task,
                 "TASK2",
-                configMINIMAL_STACK_SIZE,
-                (void *)task_text_2,
-                1,
-                NULL);
-    xTaskCreate(func_test_periodic,
-                "TASK3",
-                configMINIMAL_STACK_SIZE,
-                (void *)task_text_3,
+                configMINIMAL_STACK_SIZE + 100,
+                (void *)&par_2,
                 2,
-                NULL);
+                &task_handle_2);
 
     /* Start scheduler */
     osKernelStart();
@@ -331,32 +332,44 @@ void SystemClock_Config(void)
 
 void func_test_task(void *pvParameters)
 {
-    char *ptr_str;
-    char  str_buf[50] = { 0 };
+    task_param_t *ptr_str;
+    char          str_buf[50] = { 0 };
+    portBASE_TYPE task_priority;
 
-    ptr_str = (char *)pvParameters;
+    ptr_str = (task_param_t *)pvParameters;
 
     while (1) {
-        HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
-        sprintf(str_buf, "%s / %lu \r\n", ptr_str, counter);
+
+        task_priority = uxTaskPriorityGet(task_handle_1);
+        if (ptr_str->led_num == 4)
+            HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
+        if (ptr_str->led_num == 3)
+            HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+        sprintf(str_buf, "%s - priority %u \r\n", ptr_str->str, task_priority);
         print(str_buf);
-        vTaskDelay(pdMS_TO_TICKS(250));
+
+        if (task_priority == 1)
+            vTaskPrioritySet(task_handle_1, 3);
+        if (task_priority == 3)
+            vTaskPrioritySet(task_handle_1, 1);
+        //vTaskPrioritySet(task_handle_1, (task_priority + (2 * sign_factor)));
+        sign_factor *= (-1);
+        //vTaskDelay(pdMS_TO_TICKS(250));
     }
 }
 
-static void func_test_periodic(void *pvParameters)
+static void func_test_task_2(void *pvParameters)
 {
-    char        *ptr_str;
-    portTickType start_tick;
+    task_param_t *ptr_str;
+    char          str_buf[50] = { 0 };
 
-    ptr_str    = (char *)pvParameters;
-    start_tick = xTaskGetTickCount();
+    ptr_str = (task_param_t *)pvParameters;
 
     while (1) {
         HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-        print(ptr_str);
-        //vTaskDelay(500 / portTICK_RATE_MS);
-        vTaskDelayUntil(&start_tick, pdMS_TO_TICKS(700));
+        sprintf(str_buf, "%s \r\n", ptr_str->str);
+        print(str_buf);
+        //vTaskDelay(250 / portTICK_RATE_MS);
     }
 }
 
