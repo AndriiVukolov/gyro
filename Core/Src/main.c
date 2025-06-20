@@ -114,8 +114,8 @@ static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi);
 static void PERIF_SPI_Init(void);
 static void PERIF_IO_Init(void);
 
-static void         func_test_task(void *pvParameters);
-static void         func_test_task_2(void *pvParameters);
+static void         func_task_1(void *pvParameters);
+static void         func_task_2(void *pvParameters);
 static TaskHandle_t task_handle_1;
 static TaskHandle_t task_handle_2;
 
@@ -230,18 +230,12 @@ int main(void)
     /* Call init function for freertos objects (in cmsis_os2.c) */
     MX_FREERTOS_Init();
 
-    xTaskCreate(func_test_task,
+    xTaskCreate(func_task_1,
                 "TASK1",
                 configMINIMAL_STACK_SIZE + 100,
                 (void *)&par_1,
                 1,
                 &task_handle_1);
-    xTaskCreate(func_test_task,
-                "TASK2",
-                configMINIMAL_STACK_SIZE + 100,
-                (void *)&par_2,
-                2,
-                &task_handle_2);
 
     /* Start scheduler */
     osKernelStart();
@@ -330,7 +324,7 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-void func_test_task(void *pvParameters)
+void func_task_1(void *pvParameters)
 {
     task_param_t *ptr_str;
     char          str_buf[50] = { 0 };
@@ -348,17 +342,19 @@ void func_test_task(void *pvParameters)
         sprintf(str_buf, "%s - priority %u \r\n", ptr_str->str, task_priority);
         print(str_buf);
 
-        if (task_priority == 1)
-            vTaskPrioritySet(task_handle_1, 3);
-        if (task_priority == 3)
-            vTaskPrioritySet(task_handle_1, 1);
-        //vTaskPrioritySet(task_handle_1, (task_priority + (2 * sign_factor)));
-        sign_factor *= (-1);
+        xTaskCreate(func_task_2,
+                    "TASK_DEL",
+                    configMINIMAL_STACK_SIZE + 100,
+                    (void *)&par_2,
+                    2,
+                    &task_handle_2);
+        vTaskDelay(pdMS_TO_TICKS(250));
+
         //vTaskDelay(pdMS_TO_TICKS(250));
     }
 }
 
-static void func_test_task_2(void *pvParameters)
+static void func_task_2(void *pvParameters)
 {
     task_param_t *ptr_str;
     char          str_buf[50] = { 0 };
@@ -367,9 +363,10 @@ static void func_test_task_2(void *pvParameters)
 
     while (1) {
         HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-        sprintf(str_buf, "%s \r\n", ptr_str->str);
+        sprintf(str_buf, "%s deleted \r\n", ptr_str->str);
         print(str_buf);
         //vTaskDelay(250 / portTICK_RATE_MS);
+        vTaskDelete(task_handle_2);
     }
 }
 
