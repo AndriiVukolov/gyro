@@ -294,8 +294,9 @@ void Error_Handler(void);
 #define ACCEL_SPI_DIS() \
     HAL_GPIO_WritePin(ACCEL_CS_PORT, ACCEL_CS_PIN, GPIO_PIN_SET)
 typedef struct {
-    const char *str;
-    uint8_t     led_num;
+    const char *str;        //string task sending to terminal
+    uint8_t     led_num;    //led task blinking
+    uint16_t    led_period; //led period (ms)
 } task_param_t;
 /* USER CODE END Private defines */
 

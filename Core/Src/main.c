@@ -82,12 +82,9 @@ static uint8_t      int_src[6];
 static uint8_t      accel_id;
 static uint8_t      accel_drdy_flag = 0;
 
-static const char *task_text_1 = "Task 1 ";
-static const char *task_text_2 = "Task 2 ";
-static const char *task_text_3 = "Periodic Task 3 \r\n";
-
-static task_param_t par_1 = { " Task 1 ", 3 };
-static task_param_t par_2 = { " Task 2 ", 4 };
+static task_param_t par_1 = { " Task 1 ", 3, 1000 };
+static task_param_t par_2 = { " Task 2 ", 4, 2500 };
+static task_param_t par_3 = { " Hello from FreeRTOS ! ", 0, 1000 };
 
 static int8_t sign_factor = 1;
 
@@ -114,10 +111,11 @@ static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi);
 static void PERIF_SPI_Init(void);
 static void PERIF_IO_Init(void);
 
-static void         func_task_1(void *pvParameters);
-static void         func_task_2(void *pvParameters);
+static void         func_task_blink(void *pvParameters);
+static void         func_task_print(void *pvParameters);
 static TaskHandle_t task_handle_1;
 static TaskHandle_t task_handle_2;
+static TaskHandle_t task_handle_3;
 
 /* USER CODE END PFP */
 
@@ -230,12 +228,24 @@ int main(void)
     /* Call init function for freertos objects (in cmsis_os2.c) */
     MX_FREERTOS_Init();
 
-    xTaskCreate(func_task_1,
-                "TASK1",
-                configMINIMAL_STACK_SIZE + 100,
+    xTaskCreate(func_task_blink,
+                "Task_blink_1s",
+                configMINIMAL_STACK_SIZE,
                 (void *)&par_1,
                 1,
-                &task_handle_1);
+                NULL);
+    xTaskCreate(func_task_blink,
+                "Task_blink_2,5s",
+                configMINIMAL_STACK_SIZE,
+                (void *)&par_2,
+                1,
+                NULL);
+    xTaskCreate(func_task_print,
+                "Task_print",
+                configMINIMAL_STACK_SIZE,
+                (void *)&par_3,
+                1,
+                NULL);
 
     /* Start scheduler */
     osKernelStart();
@@ -324,37 +334,33 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-void func_task_1(void *pvParameters)
+void func_task_blink(void *pvParameters)
 {
     task_param_t *ptr_str;
-    char          str_buf[50] = { 0 };
-    portBASE_TYPE task_priority;
+    portBASE_TYPE period;
+    //char          str_buf[50] = { 0 };
+    //portBASE_TYPE task_priority;
 
     ptr_str = (task_param_t *)pvParameters;
+    period  = (portBASE_TYPE)ptr_str->led_period;
 
     while (1) {
 
-        task_priority = uxTaskPriorityGet(task_handle_1);
+        //task_priority = uxTaskPriorityGet(task_handle_1);
         if (ptr_str->led_num == 4)
             HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
         if (ptr_str->led_num == 3)
             HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-        sprintf(str_buf, "%s - priority %u \r\n", ptr_str->str, task_priority);
-        print(str_buf);
+        //sprintf(str_buf, "%s \r\n", ptr_str->str);
+        //print(str_buf);
 
-        xTaskCreate(func_task_2,
-                    "TASK_DEL",
-                    configMINIMAL_STACK_SIZE + 100,
-                    (void *)&par_2,
-                    2,
-                    &task_handle_2);
-        vTaskDelay(pdMS_TO_TICKS(250));
+        vTaskDelay(pdMS_TO_TICKS(period));
 
         //vTaskDelay(pdMS_TO_TICKS(250));
     }
 }
 
-static void func_task_2(void *pvParameters)
+static void func_task_print(void *pvParameters)
 {
     task_param_t *ptr_str;
     char          str_buf[50] = { 0 };
@@ -362,11 +368,9 @@ static void func_task_2(void *pvParameters)
     ptr_str = (task_param_t *)pvParameters;
 
     while (1) {
-        HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-        sprintf(str_buf, "%s deleted \r\n", ptr_str->str);
+        sprintf(str_buf, "%s \r\n", ptr_str->str);
         print(str_buf);
-        //vTaskDelay(250 / portTICK_RATE_MS);
-        vTaskDelete(task_handle_2);
+        vTaskDelay(pdMS_TO_TICKS(ptr_str->led_period));
     }
 }
 
