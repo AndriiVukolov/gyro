@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "crc.h"
 #include "spi.h"
 #include "tim.h"
@@ -33,6 +34,7 @@
 #include "stm32f4xx.h"
 #include <string.h>
 #include <stdio.h>
+#include "task.h"
 
 /* USER CODE END Includes */
 
@@ -43,7 +45,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define mainDELAY_LOOP_COUNT 0xFFFFFFFF
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -80,10 +82,19 @@ static uint8_t      int_src[6];
 static uint8_t      accel_id;
 static uint8_t      accel_drdy_flag = 0;
 
+static task_param_t par_1 = { " Task 1 ", 3, 1000 };
+static task_param_t par_2 = { " Task 2 ", 4, 2500 };
+static task_param_t par_3 = { " Hello from FreeRTOS ! ", 0, 1000 };
+
+static int8_t sign_factor = 1;
+
+uint32_t counter = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void print(const char *str);
@@ -99,6 +110,12 @@ func_write_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store);
 static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi);
 static void PERIF_SPI_Init(void);
 static void PERIF_IO_Init(void);
+
+static void         func_task_blink(void *pvParameters);
+static void         func_task_print(void *pvParameters);
+static TaskHandle_t task_handle_1;
+static TaskHandle_t task_handle_2;
+static TaskHandle_t task_handle_3;
 
 /* USER CODE END PFP */
 
@@ -208,105 +225,66 @@ int main(void)
 
     /* USER CODE END 2 */
 
+    /* Call init function for freertos objects (in cmsis_os2.c) */
+    MX_FREERTOS_Init();
+
+    xTaskCreate(func_task_blink,
+                "Task_blink_1s",
+                configMINIMAL_STACK_SIZE,
+                (void *)&par_1,
+                1,
+                NULL);
+    xTaskCreate(func_task_blink,
+                "Task_blink_2,5s",
+                configMINIMAL_STACK_SIZE,
+                (void *)&par_2,
+                1,
+                NULL);
+    xTaskCreate(func_task_print,
+                "Task_print",
+                configMINIMAL_STACK_SIZE,
+                (void *)&par_3,
+                1,
+                NULL);
+
+    /* Start scheduler */
+    osKernelStart();
+
+    /* We should never get here as control is now taken by the scheduler */
+
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1) {
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
-        print(CUR_HIDE);
-        if (indicator < 10000)
-            indicator++;
-        else
-            indicator = 0;
-        char strBuf[200] = { 0 };
+        //        print(CUR_HIDE);
+        //        if (indicator < 10000)
+        //            indicator++;
+        //        else
+        //            indicator = 0;
+        //        char strBuf[200] = { 0 };
 
-        //	  gerr = gyroReadID(&g1);
-        //	  gerr = gyroReadIntStatus(&g1);
-        //	  gerr = gyroReadReference(&g1);
-        //	  gerr = g1.funcReadRegs(ADD_REFERENCE, 1, &dummyByte);
-        //	  gerr = gyroReadAll(&g1, receiveBuf);
-        //	  gerr = g1.funcReadRegs(ADD_CTRL_REG1, 25, receiveBuf);
-        //gerr = gyroReadVal(&g1, gyro_bias);
-
-        //fst = accel_fifo_state_get(&a1, &data_qty);
-
-        //accel_slp_mode_set(&a1, 1, 1);
-
-        //        accel_drdy_flag = accel_data_ready_get(&a1);
-        //        if (accel_drdy_flag == 0) {
-        //        	aerr            = accel_data_get(&a1, accel_bias);
-        //            accel_drdy_flag = 0;
-        //        };
-
-        aerr = accel_data_get(&a1, accel_bias);
-
-        //accel_drdy = accel_data_ready_get(&a1);
-
-        //      gerr = gyroReadStatus(&g1);
-        //      if (gerr == gyroOk) sprintf(strBuf, "  %u|%u|%u|%u|%u|%u|%u|%u|  \r", g1.zyxor, g1.zor, g1.yor, g1.xor, g1.zyxda, g1.zda, g1.yda, g1.xda);
-        //      else sprintf(strBuf, "  GYRO Error!                 \r");
-
-        //      gerr = g1.funcReadRegs(ADD_OUT_X_L, 1, &receiveBuf[0]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_Y_L, 1, &receiveBuf[2]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_Y_H, 1, &receiveBuf[3]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_Z_L, 1, &receiveBuf[4]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_Z_H, 1, &receiveBuf[5]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_X_L, 1, &receiveBuf[0]);
-        //      gerr = g1.funcReadRegs(ADD_OUT_X_H, 1, &receiveBuf[1]);
-
-        if (gerr == gyroOk)
-            sprintf((char *)strBuf,
-                    " %.2f|%.2f|%.2f  *** %u| ID - %u   \r",
-                    accel_bias[0],
-                    accel_bias[1],
-                    accel_bias[2],
-
-                    indicator,
-                    accel_id);
-        //      if (gerr == gyroOk) sprintf(strBuf, " <%u>  %u|%u|%u  %u         \r", g1.Id, g1.OutX, g1.OutY, g1.OutZ, indicator++);
-
-        //      if (gerr == gyroOk)
-        //      {
-        //    	  char oneByte[4] = {0};
+        //        if (gerr == gyroOk)
+        //            sprintf((char *)strBuf,
+        //                    " %.2f|%.2f|%.2f  *** %u| ID - %u   \r",
+        //                    accel_bias[0],
+        //                    accel_bias[1],
+        //                    accel_bias[2],
         //
-        //    	  sprintf(strBuf, "<%u> ", g1.Id);
-        //    	  for (uint8_t y = 0; y < 30; y++)
-        //    	  {
-        //    		  sprintf(oneByte, "%2X|", receiveBuf[y]);
-        //    		  strcat(strBuf, oneByte);
-        //    	  }
-        //    	  sprintf(oneByte, "%u\r", indicator);
-        //		  strcat(strBuf, oneByte);
-        //      }
-        else
-            sprintf(strBuf,
-                    "  ACCEL read error!                                                 \r");
-        //      memset(receiveBuf, 0, sizeof(receiveBuf));
-        //      if (g1.zyxor)
-        //      {
-        //          sprintf(strBuf, "  GYRO overrun!  x:%u, y:%u, z:%u \r", g1.xor, g1.yor, g1.zor);
-        //      }
-
-        //print(" \r");
-
-        print(strBuf);
-        memset(strBuf, 0, sizeof(strBuf));
-        HAL_Delay(100);
-        //      if (timerIntFlag == 1)
-        //      {
-        //    	  timerIntFlag = 0;
-        //    	  timCounter++;
-        HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
-        HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-        //    	  if (timCounter == 1000)
-        //    	  {
-        //    		  timCounter = 0;
+        //                    indicator,
+        //                    accel_id);
         //
-        //    	  }
-        //      }
+        //        else
+        //            sprintf(strBuf,
+        //                    "  ACCEL read error!                                                 \r");
         //
-        print(CUR_SHOW);
+        //        print(strBuf);
+
+        //        memset(strBuf, 0, sizeof(strBuf));
+        //        HAL_Delay(100);
+
+        //        print(CUR_SHOW);
     }
     /* USER CODE END 3 */
 }
@@ -355,6 +333,54 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void func_task_blink(void *pvParameters)
+{
+    task_param_t *ptr_str;
+    portBASE_TYPE period;
+    //char          str_buf[50] = { 0 };
+    //portBASE_TYPE task_priority;
+
+    ptr_str = (task_param_t *)pvParameters;
+    period  = (portBASE_TYPE)ptr_str->led_period;
+
+    while (1) {
+
+        //task_priority = uxTaskPriorityGet(task_handle_1);
+        if (ptr_str->led_num == 4)
+            HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
+        if (ptr_str->led_num == 3)
+            HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+        //sprintf(str_buf, "%s \r\n", ptr_str->str);
+        //print(str_buf);
+
+        vTaskDelay(pdMS_TO_TICKS(period));
+
+        //vTaskDelay(pdMS_TO_TICKS(250));
+    }
+}
+
+static void func_task_print(void *pvParameters)
+{
+    task_param_t *ptr_str;
+    char          str_buf[50] = { 0 };
+
+    ptr_str = (task_param_t *)pvParameters;
+
+    while (1) {
+        sprintf(str_buf, "%s \r\n", ptr_str->str);
+        print(str_buf);
+        vTaskDelay(pdMS_TO_TICKS(ptr_str->led_period));
+    }
+}
+
+void vApplicationIdleHook(void)
+{
+    if (counter < 0xFFFFFFFF)
+        counter++;
+    else
+        counter = 0;
+}
 
 static gyroError_t
 func_read_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store)
