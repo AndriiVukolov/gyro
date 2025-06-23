@@ -396,13 +396,16 @@ static void func_task_from_queue(void *pvParameters)
     sprintf(str_buf, "%s \r\n", ptr_str->str);
     print(str_buf);
     while (1) {
-        op_status = xQueueReceive(queue1, &q2, ticks_wait);
-        if (q2.src == TASK_SEND_NUMBER)
-            sprintf(str_buf, "%lu \r\n", q2.nmb);
-        else {
-            sprintf(str_buf, "%s \r\n", digits_txt[q2.nmb]);
-        }
-        print(str_buf);
+        op_status = xQueueReceive(queue1, &q2, portMAX_DELAY);
+        if (op_status == pdTRUE) {
+            if (q2.src == TASK_SEND_NUMBER)
+                sprintf(str_buf, "%lu \r\n", q2.nmb);
+            else {
+                sprintf(str_buf, "%s \r\n", digits_txt[q2.nmb]);
+            }
+            print(str_buf);
+        } else
+            print("The queue is empty! \r\n");
         //vTaskDelay(ticks_wait);
     }
 }
@@ -440,11 +443,7 @@ static void func_task_num_to_queue(void *pvParameters)
     const portTickType ticks_wait = pdMS_TO_TICKS(ptr_str->led_period);
 
     while (1) {
-        if (q_el_num.nmb < 0xFFFFFFFF)
-            q_el_num.nmb++;
-        else
-            q_el_num.nmb = 0;
-
+        q_el_num.nmb++;
         op_status = xQueueSend(queue1, &q_el_num, ticks_wait);
         if (op_status != pdPASS)
             print("Can`t send number to queue \r\n");
