@@ -298,6 +298,14 @@ typedef struct {
     uint8_t     led_num;    //led task blinking
     uint16_t    led_period; //led period (ms)
 } task_param_t;
+
+typedef enum { TASK_SEND_TEXT, TASK_SEND_NUMBER } queue_data_source_t;
+
+typedef struct {
+    uint32_t            nmb;
+    queue_data_source_t src;
+} queue_element_t;
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
