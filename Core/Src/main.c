@@ -28,13 +28,17 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "FreeRTOS.h"
 #include "gyro_I3G4250D.h"
 #include "accel.h"
 #include "stm32f4xx_hal_def.h"
 #include "stm32f4xx.h"
+#include "stm32f429xx.h"
 #include <string.h>
 #include <stdio.h>
 #include "task.h"
+#include "timers.h"
+#include "queue.h"
 
 /* USER CODE END Includes */
 
@@ -82,22 +86,7 @@ static uint8_t      int_src[6];
 static uint8_t      accel_id;
 static uint8_t      accel_drdy_flag = 0;
 
-static task_param_t par_1 = { NULL, 3, 1000 };
-static task_param_t par_2 = { NULL, 4, 2500 };
-static task_param_t par_3 = { " Hello from FreeRTOS ! ", 0, 3000 };
-static task_param_t par_4 = { NULL, 0, 1000 };
-static task_param_t par_5 = { NULL, 0, 2000 };
-
-static QueueHandle_t queue1;
-
-static int8_t sign_factor = 1;
-
 static uint32_t counter = 0;
-
-const char digits_txt[10][10] = { { "ZERO" },  { "ONE" },   { "TWO" },
-                                  { "THREE" }, { "FOUR" },  { "FIVE" },
-                                  { "SIX" },   { "SEVEN" }, { "EIGHT" },
-                                  { "NINE" } };
 
 /* USER CODE END PV */
 
@@ -106,7 +95,6 @@ void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
-static void print(const char *str);
 static gyroError_t
 func_read_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store);
 static gyroError_t
@@ -119,14 +107,6 @@ func_write_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store);
 static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi);
 static void PERIF_SPI_Init(void);
 static void PERIF_IO_Init(void);
-
-static void func_task(void *pvParameters);
-static void func_task_from_queue(void *pvParameters);
-static void func_task_txt_to_queue(void *pvParameters);
-static void func_task_num_to_queue(void *pvParameters);
-//static TaskHandle_t task_handle_1;
-//static TaskHandle_t task_handle_2;
-//static TaskHandle_t task_handle_3;
 
 /* USER CODE END PFP */
 
@@ -236,41 +216,11 @@ int main(void)
 
     /* USER CODE END 2 */
 
+    /* Init scheduler */
+    osKernelInitialize();
+
     /* Call init function for freertos objects (in cmsis_os2.c) */
     MX_FREERTOS_Init();
-
-    queue1 = xQueueCreate(5, sizeof(queue_element_t));
-
-    xTaskCreate(func_task,
-                "Task_blink_1s",
-                configMINIMAL_STACK_SIZE,
-                (void *)&par_1,
-                1,
-                NULL);
-    xTaskCreate(func_task,
-                "Task_blink_2,5s",
-                configMINIMAL_STACK_SIZE,
-                (void *)&par_2,
-                1,
-                NULL);
-    xTaskCreate(func_task_from_queue,
-                "Task_print",
-                configMINIMAL_STACK_SIZE,
-                (void *)&par_3,
-                2,
-                NULL);
-    xTaskCreate(func_task_txt_to_queue,
-                "Task_4_txt_to_queue",
-                configMINIMAL_STACK_SIZE,
-                (void *)&par_4,
-                1,
-                NULL);
-    xTaskCreate(func_task_num_to_queue,
-                "Task_5_num_to_queue",
-                configMINIMAL_STACK_SIZE,
-                (void *)&par_5,
-                1,
-                NULL);
 
     /* Start scheduler */
     osKernelStart();
@@ -358,106 +308,11 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-//==================================================BLINK
-void func_task(void *pvParameters)
-{
-    task_param_t *ptr_str;
-    portBASE_TYPE period;
 
-    ptr_str = (task_param_t *)pvParameters;
-    period  = (portBASE_TYPE)ptr_str->led_period;
-
-    while (1) {
-        //task_priority = uxTaskPriorityGet(task_handle_1);
-        if (ptr_str->led_num == 4)
-            HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
-        if (ptr_str->led_num == 3)
-            HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
-        if (ptr_str->str != NULL) {
-            char str_buf[50] = { 0 };
-            sprintf(str_buf, "%s \r\n", ptr_str->str);
-            print(str_buf);
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(period));
-    }
-}
-//=====================================================FROM QUEUE
-static void func_task_from_queue(void *pvParameters)
-{
-    portBASE_TYPE      op_status;
-    task_param_t      *ptr_str;
-    queue_element_t    q2;
-    char               str_buf[50] = { 0 };
-    const portTickType ticks_wait  = pdMS_TO_TICKS(ptr_str->led_period);
-
-    ptr_str = (task_param_t *)pvParameters;
-
-    sprintf(str_buf, "%s \r\n", ptr_str->str);
-    print(str_buf);
-    while (1) {
-        op_status = xQueueReceive(queue1, &q2, portMAX_DELAY);
-        if (op_status == pdTRUE) {
-            if (q2.src == TASK_SEND_NUMBER)
-                sprintf(str_buf, "%lu \r\n", q2.nmb);
-            else {
-                sprintf(str_buf, "%s \r\n", digits_txt[q2.nmb]);
-            }
-            print(str_buf);
-        } else
-            print("The queue is empty! \r\n");
-        //vTaskDelay(ticks_wait);
-    }
-}
-//======================================================TXT TO QUEUE
-static void func_task_txt_to_queue(void *pvParameters)
-{
-    portBASE_TYPE          op_status;
-    task_param_t          *ptr_str;
-    static queue_element_t q_el_txt = { 0, TASK_SEND_TEXT };
-
-    ptr_str = (task_param_t *)pvParameters;
-
-    const portTickType ticks_wait = pdMS_TO_TICKS(ptr_str->led_period);
-
-    while (1) {
-        if (q_el_txt.nmb < 9)
-            q_el_txt.nmb++;
-        else
-            q_el_txt.nmb = 0;
-        op_status = xQueueSend(queue1, &q_el_txt, ticks_wait);
-        if (op_status != pdPASS)
-            print("Can`t send text to queue \r\n");
-        vTaskDelay(ticks_wait);
-    }
-}
-//==========================================================NUM TO QUEUE
-static void func_task_num_to_queue(void *pvParameters)
-{
-    portBASE_TYPE          op_status;
-    task_param_t          *ptr_str;
-    static queue_element_t q_el_num = { 0, TASK_SEND_NUMBER };
-
-    ptr_str = (task_param_t *)pvParameters;
-
-    const portTickType ticks_wait = pdMS_TO_TICKS(ptr_str->led_period);
-
-    while (1) {
-        q_el_num.nmb++;
-        op_status = xQueueSend(queue1, &q_el_num, ticks_wait);
-        if (op_status != pdPASS)
-            print("Can`t send number to queue \r\n");
-        vTaskDelay(ticks_wait);
-    }
-}
-
-void vApplicationIdleHook(void)
-{
-    if (counter < 0xFFFFFFFF)
-        counter++;
-    else
-        counter = 0;
-}
+//void vApplicationIdleHook(void)
+//{
+//    counter++;
+//}
 
 static gyroError_t
 func_read_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store)
