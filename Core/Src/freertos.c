@@ -400,9 +400,9 @@ void func_task_txt_to_queue(void *argument)
 void func_button_handler(void *argument)
 {
     /* USER CODE BEGIN func_button_handler */
-    osStatus_t             op_status = osOK;
-    task_param_t          *ptr_str;
-    static queue_element_t q_el_evt = { 11, TASK_SEND_TEXT };
+    osStatus_t      op_status = osOK;
+    task_param_t   *ptr_str;
+    queue_element_t q_el_evt = { 11, TASK_SEND_TEXT };
 
     ptr_str = (task_param_t *)argument;
 
