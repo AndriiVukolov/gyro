@@ -93,8 +93,9 @@ void Error_Handler(void);
 #define CSX_GPIO_Port GPIOC
 #define CS_ACCEL_Pin GPIO_PIN_3
 #define CS_ACCEL_GPIO_Port GPIOC
-#define B1_Pin GPIO_PIN_0
-#define B1_GPIO_Port GPIOA
+#define BUTTON_Pin GPIO_PIN_0
+#define BUTTON_GPIO_Port GPIOA
+#define BUTTON_EXTI_IRQn EXTI0_IRQn
 #define MEMS_INT1_Pin GPIO_PIN_1
 #define MEMS_INT1_GPIO_Port GPIOA
 #define MEMS_INT2_Pin GPIO_PIN_2
@@ -248,8 +249,8 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
-#define CUR_HIDE "\e[?25l" // hide cursor
-#define CUR_SHOW "\e[?25h" // show cursor
+#define CUR_HIDE    "\e[?25l" // hide cursor
+#define CUR_SHOW    "\e[?25h" // show cursor
 
 #define SPI_TIMEOUT 100
 /**
