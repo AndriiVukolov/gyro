@@ -37,7 +37,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define DEBOUNCE_DELAY 100
+#define DEBOUNCE_DELAY 200
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -178,7 +178,7 @@ void MX_FREERTOS_Init(void)
 
     /* Create the semaphores(s) */
     /* creation of sem_1_binary */
-    sem_1_binaryHandle = osSemaphoreNew(1, 1, &sem_1_binary_attributes);
+    sem_1_binaryHandle = osSemaphoreNew(1, 0, &sem_1_binary_attributes);
 
     /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
@@ -208,7 +208,7 @@ void MX_FREERTOS_Init(void)
     timer_1Handle = xTimerCreate(
             "timer_1", /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
             timer_1_period,
-            0,
+            1,
             (void *)&t1,
             func_soft_timer);
     timer_2Handle = xTimerCreate(
@@ -400,9 +400,9 @@ void func_task_txt_to_queue(void *argument)
 void func_button_handler(void *argument)
 {
     /* USER CODE BEGIN func_button_handler */
-    osStatus_t      op_status = osOK;
-    task_param_t   *ptr_str;
-    queue_element_t q_el_evt = { 11, TASK_SEND_TEXT };
+    osStatus_t             op_status = osOK;
+    task_param_t          *ptr_str;
+    static queue_element_t q_el_evt = { 11, TASK_SEND_TEXT };
 
     ptr_str = (task_param_t *)argument;
 
@@ -410,13 +410,10 @@ void func_button_handler(void *argument)
     /* Infinite loop */
     while (1) {
         osSemaphoreAcquire(sem_1_binaryHandle, portMAX_DELAY);
-        if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin) == GPIO_PIN_SET) {
-            op_status =
-                    osMessageQueuePut(queue1Handle, &q_el_evt, 0, ticks_wait);
-            if (op_status != osOK)
-                print("Can`t send message to queue \r\n");
-            HAL_NVIC_EnableIRQ(BUTTON_EXTI_IRQn);
-        }
+        op_status = osMessageQueuePut(queue1Handle, &q_el_evt, 0, ticks_wait);
+        if (op_status != osOK)
+            print("Can`t send message to queue \r\n");
+        HAL_NVIC_EnableIRQ(BUTTON_EXTI_IRQn);
     }
     /* USER CODE END func_button_handler */
 }
@@ -439,7 +436,10 @@ void func_soft_timer(TimerHandle_t x_timer)
         xTimerStart(timer_2Handle, 0);
         HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
     } else if (*timer_id == 4) {
-        osSemaphoreRelease(sem_1_binaryHandle);
+        if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin) == GPIO_PIN_SET) {
+            osSemaphoreRelease(sem_1_binaryHandle);
+        } else
+            HAL_NVIC_EnableIRQ(BUTTON_EXTI_IRQn);
     }
 
     /* USER CODE END func_soft_timer */
@@ -450,8 +450,9 @@ void func_soft_timer(TimerHandle_t x_timer)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    HAL_NVIC_DisableIRQ(BUTTON_EXTI_IRQn);
+
     if (GPIO_Pin == BUTTON_Pin) {
+        HAL_NVIC_DisableIRQ(BUTTON_EXTI_IRQn);
         xTimerStartFromISR(timer_4Handle, &xHigherPriorityTaskWoken);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
