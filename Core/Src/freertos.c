@@ -25,9 +25,15 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stdio.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "timers.h"
 #include "stm32f4xx_it.h"
+#include "queue.h"
+#include "semphr.h"
+#include "usart.h"
+#include "gyro_I3G4250D.h"
+#include "accel.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,88 +58,54 @@ task_param_t par_2 = { NULL, 0, 0 };
 task_param_t par_3 = { " Hello from FreeRTOS ! ", 0, 3000 };
 task_param_t par_4 = { NULL, 0, 1000 };
 task_param_t par_5 = { NULL, 0, 2000 };
+task_param_t par_6 = { NULL, 0, portMAX_DELAY };
+task_param_t par_7 = { NULL, 0, portMAX_DELAY };
 
-uint32_t t1             = 1;
-uint32_t t2             = 2;
-uint32_t t3             = 3;
-uint32_t t4             = 4;
-uint32_t timer_1_period = pdMS_TO_TICKS(1000);
-uint32_t timer_2_period = pdMS_TO_TICKS(300);
-uint32_t timer_3_period = pdMS_TO_TICKS(2000);
-uint32_t timer_4_period = pdMS_TO_TICKS(DEBOUNCE_DELAY);
+uint32_t t_gyro  = 1;
+uint32_t t_accel = 2;
+uint32_t t_data  = 3;
+
+uint32_t timer_gyro_poll_period  = pdMS_TO_TICKS(100);
+uint32_t timer_accel_poll_period = pdMS_TO_TICKS(100);
+uint32_t timer_data_show_period  = pdMS_TO_TICKS(1000);
 
 const char digits_txt[10][10] = { { "ZERO" },  { "ONE" },   { "TWO" },
                                   { "THREE" }, { "FOUR" },  { "FIVE" },
                                   { "SIX" },   { "SEVEN" }, { "EIGHT" },
                                   { "NINE" } };
+const char char_msg[]         = { "control_message\r\n\0" };
+const char num_msg[]          = { "1234567890\r\n\0" };
 
-TimerHandle_t timer_1Handle;
-TimerHandle_t timer_2Handle;
-TimerHandle_t timer_3Handle;
-TimerHandle_t timer_4Handle;
+TimerHandle_t timer_gyro_poll;
+TimerHandle_t timer_accel_poll;
+TimerHandle_t timer_data_show; //user
+
+TaskHandle_t task_default;
+TaskHandle_t task_gyro_handler;
+TaskHandle_t task_accel_handler;
+TaskHandle_t task_cli_handler;
+
+QueueHandle_t queue_gyro;
+QueueHandle_t queue_accel;
+QueueHandle_t queue_cli_command;
+
+SemaphoreHandle_t sem_1;
+SemaphoreHandle_t mutex_spi;
+
+BaseType_t success_flag = pdFAIL;
 
 /* USER CODE END Variables */
-/* Definitions for defaultTask */
-osThreadId_t         defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = {
-    .name       = "defaultTask",
-    .stack_size = 128 * 4,
-    .priority   = (osPriority_t)osPriorityIdle,
-};
-/* Definitions for task_3 */
-osThreadId_t         task_3Handle;
-const osThreadAttr_t task_3_attributes = {
-    .name       = "task_3",
-    .stack_size = 128 * 4,
-    .priority   = (osPriority_t)osPriorityLow3,
-};
-/* Definitions for task_4 */
-osThreadId_t         task_4Handle;
-const osThreadAttr_t task_4_attributes = {
-    .name       = "task_4",
-    .stack_size = 128 * 4,
-    .priority   = (osPriority_t)osPriorityLow2,
-};
-/* Definitions for task_5 */
-osThreadId_t         task_5Handle;
-const osThreadAttr_t task_5_attributes = {
-    .name       = "task_5",
-    .stack_size = 128 * 4,
-    .priority   = (osPriority_t)osPriorityLow2,
-};
-/* Definitions for task_2 */
-osThreadId_t         task_2Handle;
-const osThreadAttr_t task_2_attributes = {
-    .name       = "task_2",
-    .stack_size = 128 * 4,
-    .priority   = (osPriority_t)osPriorityNormal1,
-};
-/* Definitions for queue1 */
-osMessageQueueId_t         queue1Handle;
-const osMessageQueueAttr_t queue1_attributes = { .name = "queue1" };
-/* Definitions for timer_1 */
-//osTimerId_t         timer_1Handle;
-//const osTimerAttr_t timer_1_attributes = { .name = "timer_1" };
-///* Definitions for timer_2 */
-//osTimerId_t         timer_2Handle;
-//const osTimerAttr_t timer_2_attributes = { .name = "timer_2" };
-///* Definitions for timer_3 */
-//osTimerId_t         timer_3Handle;
-//const osTimerAttr_t timer_3_attributes = { .name = "timer_3" };
-///* Definitions for timer_4 */
-//osTimerId_t         timer_4Handle;
-//const osTimerAttr_t timer_4_attributes = { .name = "timer_4" };
-/* Definitions for sem_1_binary */
-osSemaphoreId_t         sem_1_binaryHandle;
-const osSemaphoreAttr_t sem_1_binary_attributes = { .name = "sem_1_binary" };
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 //void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
-
+void func_gyro_poll(void *argument);
+void func_accel_poll(void *argument);
+void func_cli_handler(void *argument);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
+
 void func_task_from_queue(void *argument);
 void func_task_num_to_queue(void *argument);
 void func_task_txt_to_queue(void *argument);
@@ -174,101 +146,83 @@ void MX_FREERTOS_Init(void)
 
     /* USER CODE BEGIN RTOS_MUTEX */
     /* add mutexes, ... */
+    mutex_1 = xSemaphoreCreateMutex();
     /* USER CODE END RTOS_MUTEX */
 
     /* Create the semaphores(s) */
-    /* creation of sem_1_binary */
-    sem_1_binaryHandle = osSemaphoreNew(1, 0, &sem_1_binary_attributes);
-
     /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
-
+    sem_1 = xSemaphoreCreateCounting(1, 0);
     /* USER CODE END RTOS_SEMAPHORES */
 
     /* Create the timer(s) */
-    /* creation of timer_1 */
-    //    timer_1Handle = osTimerNew(
-    //            func_soft_timer, osTimerPeriodic, (void *)&t1, &timer_1_attributes);
-    //
-    //    /* creation of timer_2 */
-    //    timer_2Handle = osTimerNew(
-    //            func_soft_timer, osTimerOnce, (void *)&t2, &timer_2_attributes);
-    //
-    //    /* creation of timer_3 */
-    //    timer_3Handle = osTimerNew(
-    //            func_soft_timer, osTimerOnce, (void *)&t3, &timer_3_attributes);
-
-    /* creation of timer_4 */
-    //    timer_4Handle = osTimerNew(
-    //            func_soft_timer, osTimerOnce, (void *)&t4, &timer_4_attributes);
 
     /* USER CODE BEGIN RTOS_TIMERS */
     /* start timers, add new ones, ... */
 
-    timer_1Handle = xTimerCreate(
-            "timer_1", /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
-            timer_1_period,
-            1,
-            (void *)&t1,
-            func_soft_timer);
-    timer_2Handle = xTimerCreate(
-            "timer_2", /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
-            timer_2_period,
-            0,
-            (void *)&t2,
-            func_soft_timer);
-    timer_3Handle = xTimerCreate(
-            "timer_3", /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
-            timer_3_period,
-            0,
-            (void *)&t3,
-            func_soft_timer);
-    timer_4Handle = xTimerCreate(
-            "timer_4", /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
-            timer_4_period,
-            0,
-            (void *)&t4,
-            func_soft_timer);
+    timer_gyro_poll  = xTimerCreate("timer_gyro_poll",
+                                   timer_gyro_poll_period,
+                                   1,
+                                   (void *)&t_gyro,
+                                   func_soft_timer);
+    timer_accel_poll = xTimerCreate("timer_accel_poll",
+                                    timer_accel_poll_period,
+                                    1,
+                                    (void *)&t_accel,
+                                    func_soft_timer);
+    timer_data_show  = xTimerCreate("timer_data_show",
+                                   timer_data_show_period,
+                                   1,
+                                   (void *)&t_data,
+                                   func_soft_timer);
     /* USER CODE END RTOS_TIMERS */
 
     /* Create the queue(s) */
-    /* creation of queue1 */
-    queue1Handle =
-            osMessageQueueNew(5, sizeof(queue_element_t), &queue1_attributes);
-
     /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
+    queue_1 = xQueueCreate(5, sizeof(queue_element_t));
     /* USER CODE END RTOS_QUEUES */
 
     /* Create the thread(s) */
-    /* creation of defaultTask */
-    defaultTaskHandle =
-            osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
-
-    /* creation of task_3 */
-    task_3Handle = osThreadNew(
-            func_task_from_queue, (void *)&par_3, &task_3_attributes);
-
-    /* creation of task_4 */
-    task_4Handle = osThreadNew(
-            func_task_num_to_queue, (void *)&par_4, &task_4_attributes);
-
-    /* creation of task_5 */
-    task_5Handle = osThreadNew(
-            func_task_txt_to_queue, (void *)&par_5, &task_5_attributes);
-
-    /* creation of task_2 */
-    task_2Handle = osThreadNew(
-            func_button_handler, (void *)&par_2, &task_2_attributes);
 
     /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
+
+    xTaskCreate(StartDefaultTask,
+                "task_default",
+                configMINIMAL_STACK_SIZE,
+                NULL,
+                osPriorityIdle,
+                &task_default);
+    xTaskCreate(func_gyro_poll,
+                "task_gyro_handler",
+                configMINIMAL_STACK_SIZE,
+                NULL,
+                osPriorityBelowNormal1,
+                &task_gyro_handler);
+    xTaskCreate(func_accel_poll,
+                "task_accel_handler",
+                configMINIMAL_STACK_SIZE,
+                NULL,
+                osPriorityBelowNormal1,
+                &task_accel_handler);
+    xTaskCreate(func_cli_handler,
+                "task_cli_handler",
+                configMINIMAL_STACK_SIZE,
+                NULL,
+                osPriorityBelowNormal1,
+                &task_cli_handler);
+
     /* USER CODE END RTOS_THREADS */
 
     /* USER CODE BEGIN RTOS_EVENTS */
     /* add events, ... */
-    xTimerStart(timer_1Handle, 0);
-    xTimerStart(timer_2Handle, 0);
+    success_flag = xTimerStart(timer_1, 0);
+    if (success_flag != pdPASS)
+        print("Unable to start timer_1");
+    success_flag = xTimerStart(timer_2, 0);
+    if (success_flag != pdPASS)
+        print("Unable to start timer_2");
     /* USER CODE END RTOS_EVENTS */
 }
 
@@ -284,7 +238,7 @@ void StartDefaultTask(void *argument)
     /* USER CODE BEGIN StartDefaultTask */
     /* Infinite loop */
     for (;;) {
-        osDelay(1);
+        vTaskDelay(1);
     }
     /* USER CODE END StartDefaultTask */
 }
@@ -299,7 +253,7 @@ void StartDefaultTask(void *argument)
 void func_task_from_queue(void *argument)
 {
     /* USER CODE BEGIN func_task_from_queue */
-    osStatus_t      op_status = osOK;
+    BaseType_t      op_status = pdFAIL;
     task_param_t   *ptr_str;
     queue_element_t q2;
     char            str_buf[50] = { 0 };
@@ -310,8 +264,8 @@ void func_task_from_queue(void *argument)
     print(str_buf);
     /* Infinite loop */
     for (;;) {
-        op_status = osMessageQueueGet(queue1Handle, &q2, NULL, portMAX_DELAY);
-        if (op_status == osOK) {
+        op_status = xQueueReceive(queue_1, &q2, portMAX_DELAY);
+        if (op_status == pdPASS) {
             if (q2.src == TASK_SEND_NUMBER)
                 sprintf(str_buf, "%lu \r\n", q2.nmb);
             else {
@@ -338,21 +292,21 @@ void func_task_from_queue(void *argument)
 void func_task_num_to_queue(void *argument)
 {
     /* USER CODE BEGIN func_task_num_to_queue */
-    osStatus_t             op_status = osOK;
+    BaseType_t             op_status = pdFAIL;
     task_param_t          *ptr_str;
     static queue_element_t q_el_num = { 0, TASK_SEND_NUMBER };
 
     ptr_str = (task_param_t *)argument;
 
-    const portTickType ticks_wait = pdMS_TO_TICKS(ptr_str->led_period);
+    const portTickType ticks_wait = pdMS_TO_TICKS(ptr_str->period);
     /* Infinite loop */
     for (;;) {
         q_el_num.nmb++;
-        op_status = osMessageQueuePut(queue1Handle, &q_el_num, 0, ticks_wait);
-        if (op_status != osOK)
+        op_status = xQueueSend(queue_1, &q_el_num, ticks_wait);
+        if (op_status != pdPASS)
             print("Can`t send number to queue \r\n");
 
-        osDelay(ticks_wait);
+        vTaskDelay(ticks_wait);
     }
     /* USER CODE END func_task_num_to_queue */
 }
@@ -367,13 +321,13 @@ void func_task_num_to_queue(void *argument)
 void func_task_txt_to_queue(void *argument)
 {
     /* USER CODE BEGIN func_task_txt_to_queue */
-    osStatus_t             op_status = osOK;
+    BaseType_t             op_status = pdFAIL;
     task_param_t          *ptr_str;
     static queue_element_t q_el_txt = { 0, TASK_SEND_TEXT };
 
     ptr_str = (task_param_t *)argument;
 
-    const portTickType ticks_wait = pdMS_TO_TICKS(ptr_str->led_period);
+    const portTickType ticks_wait = pdMS_TO_TICKS(ptr_str->period);
     /* Infinite loop */
     for (;;) {
         if (q_el_txt.nmb < 9)
@@ -381,11 +335,11 @@ void func_task_txt_to_queue(void *argument)
         else
             q_el_txt.nmb = 0;
         //op_status = xQueueSend(queue1Handle, &q_el_txt, ticks_wait);
-        op_status = osMessageQueuePut(queue1Handle, &q_el_txt, 0, ticks_wait);
-        if (op_status != osOK)
+        op_status = xQueueSend(queue_1, &q_el_txt, ticks_wait);
+        if (op_status != pdPASS)
             print("Can`t send text to queue \r\n");
 
-        osDelay(ticks_wait);
+        vTaskDelay(ticks_wait);
     }
     /* USER CODE END func_task_txt_to_queue */
 }
@@ -400,18 +354,18 @@ void func_task_txt_to_queue(void *argument)
 void func_button_handler(void *argument)
 {
     /* USER CODE BEGIN func_button_handler */
-    osStatus_t      op_status = osOK;
+    BaseType_t      op_status = pdFAIL;
     task_param_t   *ptr_str;
     queue_element_t q_el_evt = { 11, TASK_SEND_TEXT };
 
     ptr_str = (task_param_t *)argument;
 
-    const portTickType ticks_wait = pdMS_TO_TICKS(ptr_str->led_period);
+    const portTickType ticks_wait = pdMS_TO_TICKS(ptr_str->period);
     /* Infinite loop */
     while (1) {
-        osSemaphoreAcquire(sem_1_binaryHandle, portMAX_DELAY);
-        op_status = osMessageQueuePut(queue1Handle, &q_el_evt, 0, ticks_wait);
-        if (op_status != osOK)
+        xSemaphoreTake(sem_1, portMAX_DELAY);
+        op_status = xQueueSend(queue_1, &q_el_evt, ticks_wait);
+        if (op_status != pdPASS)
             print("Can`t send message to queue \r\n");
         HAL_NVIC_EnableIRQ(BUTTON_EXTI_IRQn);
     }
@@ -430,15 +384,15 @@ void func_soft_timer(TimerHandle_t x_timer)
     if (*timer_id == 1) {
         HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
     } else if (*timer_id == 2) {
-        xTimerStart(timer_3Handle, 0);
+        xTimerStart(timer_3, 0);
         HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_RESET);
     } else if (*timer_id == 3) {
-        xTimerStart(timer_2Handle, 0);
+        xTimerStart(timer_2, 0);
         HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
     } else if (*timer_id == 4) {
-        if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin) == GPIO_PIN_SET) {
-            osSemaphoreRelease(sem_1_binaryHandle);
-        } else
+        if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin) == GPIO_PIN_SET)
+            xSemaphoreGive(sem_1);
+        else
             HAL_NVIC_EnableIRQ(BUTTON_EXTI_IRQn);
     }
 
@@ -453,8 +407,41 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
     if (GPIO_Pin == BUTTON_Pin) {
         HAL_NVIC_DisableIRQ(BUTTON_EXTI_IRQn);
-        xTimerStartFromISR(timer_4Handle, &xHigherPriorityTaskWoken);
+        xTimerStartFromISR(timer_4, &xHigherPriorityTaskWoken);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+}
+
+void func_char_to_uart(void *argument)
+{
+    const char *c = NULL;
+    c             = char_msg;
+
+    while (1) {
+        if (xSemaphoreTake(mutex_1, portMAX_DELAY) == pdTRUE) {
+            while (*c != '\0') {
+                HAL_UART_Transmit(&huart1, (const uint8_t *)c, 1, 10);
+                c++;
+                HAL_Delay(100);
+            }
+            xSemaphoreGive(mutex_1);
+        }
+    }
+}
+void func_num_to_uart(void *argument)
+{
+    const char *c = NULL;
+    c             = num_msg;
+
+    while (1) {
+        if (xSemaphoreTake(mutex_1, portMAX_DELAY) == pdTRUE) {
+            while (*c != '\0') {
+                HAL_UART_Transmit(&huart1, (const uint8_t *)c, 1, 10);
+                c++;
+                HAL_Delay(100);
+            }
+            xSemaphoreGive(mutex_1);
+        }
     }
 }
 

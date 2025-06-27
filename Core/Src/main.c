@@ -77,9 +77,6 @@ static uint16_t      timCounter      = 0;
 static uint8_t       dummyByte       = 0;
 static uint8_t       accel_drdy      = 0;
 
-static interrupt_t  aint1, aint2;
-static tap_dir_t    a1_tap_single_dir, a1_tap_double_dir;
-static tap_thr_t    a1_tap_single_thr, a1_tap_double_thr;
 static fifo_state_t fst;
 static uint8_t      data_qty;
 static uint8_t      int_src[6];
@@ -122,34 +119,34 @@ static void PERIF_IO_Init(void);
 int main(void)
 {
 
-  /* USER CODE BEGIN 1 */
+    /* USER CODE BEGIN 1 */
 
-  /* USER CODE END 1 */
+    /* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+    /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    HAL_Init();
 
-  /* USER CODE BEGIN Init */
+    /* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+    /* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+    /* Configure the system clock */
+    SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
+    /* USER CODE BEGIN SysInit */
 
-  /* USER CODE END SysInit */
+    /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_FMC_Init();
-  MX_TIM1_Init();
-  MX_USART1_UART_Init();
-  MX_CRC_Init();
-  MX_SPI5_Init();
-  /* USER CODE BEGIN 2 */
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
+    MX_FMC_Init();
+    MX_TIM1_Init();
+    MX_USART1_UART_Init();
+    MX_CRC_Init();
+    MX_SPI5_Init();
+    /* USER CODE BEGIN 2 */
     //=============================================================GYRO Init
     PERIF_IO_Init();
 
@@ -164,75 +161,30 @@ int main(void)
 
     a1.data_write = func_write_accel_spi;
     a1.data_read  = func_read_accel_spi;
-    aint1.ibyte   = 0;
-    //aint1.ibit.drdy         = 1;
-    aint2.ibyte             = 0;
-    a1_tap_single_dir.cbyte = 7; // all directions 0b00000111
-    a1_tap_double_dir.cbyte = 7; // all directions
-
-    a1_tap_single_thr.x_thr = 4; // 4/32 = 1/8g
-    a1_tap_single_thr.y_thr = 4;
-    a1_tap_single_thr.z_thr = 4;
-
-    a1_tap_double_thr.x_thr = 4; // 4/32 = 1/8g
-    a1_tap_double_thr.y_thr = 4;
-    a1_tap_double_thr.z_thr = 4;
-
-    aerr = accel_init(&a1); // set defines
-
-    accel_filter_set(&a1, 0, 0, fs_4); //Filter mode set
-    accel_int1_set(&a1, aint1);        //Interrupt 1 set
-    accel_int2_set(&a1, aint2);        //Interrupt 2 set
-    //    accel_free_fall_set(&a1, FF_250, 1); //Free fall detection set
-    //    accel_wake_up_set(&a1, 16, 2);       //Wake up mode set
-    accel_int_mode_set(&a1, PULSED); //Interrupt mode set
-                                     //    accel_single_tap_set(&a1,
-    //                         &a1_tap_single_dir,
-    //                         &a1_tap_single_thr,
-    //                         0,
-    //                         0,
-    //                         4);                   //Single tap set
-    //    accel_orientation_param_set(&a1, STHR_60); //Orientation detection set
-    accel_int_disable(&a1);
-    accel_interface_set(&a1, SPI_4);
-    accel_bdu_set(&a1, 1);
-    //=========================================================FIFO settings
-    accel_autoincrement_set(&a1, ACCEL_DISABLE);
-    //accel_fifo_set(&a1, FIFO_OFF, 0);
-    accel_fifo_set(&a1, FIFO_CONTIN, 32);
-    //accel_slp_mode_set(&a1, 0, 0);
-    //=========================================================Turn on accel
-    accel_power_mode_set(&a1,
-                         LOW_POWER_MODE,
-                         LP_MODE_2,
-                         IPM_50,
-                         LN_OFF); //Power mode set
-
-    accel_id = accel_id_get(&a1);
-
+    aerr          = accel_init(&a1); // set defines
     if (aerr != ACCEL_OK)
         print("Accel init error! \r\n");
     //==========================================================END OF ACCEL INIT
 
-  /* USER CODE END 2 */
+    /* USER CODE END 2 */
 
-  /* Init scheduler */
-  osKernelInitialize();
+    /* Init scheduler */
+    osKernelInitialize();
 
-  /* Call init function for freertos objects (in cmsis_os2.c) */
-  MX_FREERTOS_Init();
+    /* Call init function for freertos objects (in cmsis_os2.c) */
+    MX_FREERTOS_Init();
 
-  /* Start scheduler */
-  osKernelStart();
+    /* Start scheduler */
+    osKernelStart();
 
-  /* We should never get here as control is now taken by the scheduler */
+    /* We should never get here as control is now taken by the scheduler */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+    /* Infinite loop */
+    /* USER CODE BEGIN WHILE */
     while (1) {
-    /* USER CODE END WHILE */
+        /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
+        /* USER CODE BEGIN 3 */
         //        print(CUR_HIDE);
         //        if (indicator < 10000)
         //            indicator++;
@@ -261,7 +213,7 @@ int main(void)
 
         //        print(CUR_SHOW);
     }
-  /* USER CODE END 3 */
+    /* USER CODE END 3 */
 }
 
 /**
@@ -270,43 +222,41 @@ int main(void)
   */
 void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+    RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
 
-  /** Configure the main internal regulator output voltage
+    /** Configure the main internal regulator output voltage
   */
-  __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
 
-  /** Initializes the RCC Oscillators according to the specified parameters
+    /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 72;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 3;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState       = RCC_HSE_ON;
+    RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM       = 4;
+    RCC_OscInitStruct.PLL.PLLN       = 72;
+    RCC_OscInitStruct.PLL.PLLP       = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ       = 3;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+        Error_Handler();
+    }
 
-  /** Initializes the CPU, AHB and APB buses clocks
+    /** Initializes the CPU, AHB and APB buses clocks
   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                                  RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+        Error_Handler();
+    }
 }
 
 /* USER CODE BEGIN 4 */
@@ -546,18 +496,17 @@ static void PERIF_IO_Init(void)
   */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  /* USER CODE BEGIN Callback 0 */
+    /* USER CODE BEGIN Callback 0 */
     if (htim->Instance == TIM1) {
         timerIntFlag = 1;
     }
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM6)
-  {
-    HAL_IncTick();
-  }
-  /* USER CODE BEGIN Callback 1 */
+    /* USER CODE END Callback 0 */
+    if (htim->Instance == TIM6) {
+        HAL_IncTick();
+    }
+    /* USER CODE BEGIN Callback 1 */
 
-  /* USER CODE END Callback 1 */
+    /* USER CODE END Callback 1 */
 }
 
 /**
@@ -566,15 +515,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   */
 void Error_Handler(void)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
+    /* USER CODE BEGIN Error_Handler_Debug */
     /* User can add his own implementation to report the HAL error return state */
     __disable_irq();
     while (1) {
     }
-  /* USER CODE END Error_Handler_Debug */
+    /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -584,10 +533,10 @@ void Error_Handler(void)
   */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-  /* USER CODE BEGIN 6 */
+    /* USER CODE BEGIN 6 */
     /* User can add his own implementation to report the file name and line
      number, ex: printf("Wrong parameters value: file %s on line %d\r\n", file,
      line) */
-  /* USER CODE END 6 */
+    /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

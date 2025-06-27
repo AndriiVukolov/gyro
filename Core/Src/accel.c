@@ -514,6 +514,9 @@ accel_error_t accel_tap_get(accel_t *haccel, uint8_t *tap_src_byte)
 accel_error_t accel_init(accel_t *haccel)
 {
     accel_error_t err = ACCEL_OK;
+    interrupt_t   aint1, aint2;
+    tap_dir_t     a1_tap_single_dir, a1_tap_double_dir;
+    tap_thr_t     a1_tap_single_thr, a1_tap_double_thr;
     //==========================================================ACCEL SETTINGS
 
     haccel->id.address   = ADD_WHO_AM_I;
@@ -1348,6 +1351,49 @@ accel_error_t accel_init(accel_t *haccel)
     haccel->drdy_pulsed.read_only = 0;
     haccel->drdy_pulsed.is_read   = 0;
     haccel->drdy_pulsed.value     = 0;
+
+    aint1.ibyte             = 0;
+    aint2.ibyte             = 0;
+    a1_tap_single_dir.cbyte = 7; // all directions 0b00000111
+    a1_tap_double_dir.cbyte = 7; // all directions
+
+    a1_tap_single_thr.x_thr = 4; // 4/32 = 1/8g
+    a1_tap_single_thr.y_thr = 4;
+    a1_tap_single_thr.z_thr = 4;
+
+    a1_tap_double_thr.x_thr = 4; // 4/32 = 1/8g
+    a1_tap_double_thr.y_thr = 4;
+    a1_tap_double_thr.z_thr = 4;
+
+    err = accel_filter_set(haccel, 0, 0, fs_4); //Filter mode set
+    err |= accel_int1_set(haccel, aint1);       //Interrupt 1 set
+    err |= accel_int2_set(haccel, aint2);       //Interrupt 2 set
+    //    accel_free_fall_set(&a1, FF_250, 1); //Free fall detection set
+    //    accel_wake_up_set(&a1, 16, 2);       //Wake up mode set
+    err |= accel_int_mode_set(haccel, PULSED); //Interrupt mode set
+                                               //    accel_single_tap_set(&a1,
+    //                         &a1_tap_single_dir,
+    //                         &a1_tap_single_thr,
+    //                         0,
+    //                         0,
+    //                         4);                   //Single tap set
+    //    accel_orientation_param_set(&a1, STHR_60); //Orientation detection set
+    err |= accel_int_disable(haccel);
+    err |= accel_interface_set(haccel, SPI_4);
+    err |= accel_bdu_set(haccel, 1);
+    //=========================================================FIFO settings
+    err |= accel_autoincrement_set(haccel, ACCEL_DISABLE);
+    //accel_fifo_set(&a1, FIFO_OFF, 0);
+    err |= accel_fifo_set(haccel, FIFO_CONTIN, 32);
+    //accel_slp_mode_set(&a1, 0, 0);
+    //=========================================================Turn on accel
+    err |= accel_power_mode_set(haccel,
+                                LOW_POWER_MODE,
+                                LP_MODE_2,
+                                IPM_50,
+                                LN_OFF); //Power mode set
+
+    accel_id_get(haccel);
 
     //==========================================================END OF ACCEL SETTINGS
     return err;
