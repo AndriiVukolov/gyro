@@ -60,8 +60,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-static gyro_t  g1 = { 0 };
-static accel_t a1 = { 0 };
+gyro_t  g1 = { 0 };
+accel_t a1 = { 0 };
 
 static uint8_t       receiveBuf[32]  = { 0 };
 static uint8_t       transmitBuf[32] = { 0 };
@@ -150,8 +150,8 @@ int main(void)
     //=============================================================GYRO Init
     PERIF_IO_Init();
 
-    g1.funcReadRegs  = func_read_gyro_spi;
-    g1.funcWriteRegs = func_write_gyro_spi;
+    g1.data_read  = func_read_gyro_spi;
+    g1.data_write = func_write_gyro_spi;
     gerr             = gyroInit(&g1);
     if (gerr != gyroOk)
         print("Gyro init error! \r\n");

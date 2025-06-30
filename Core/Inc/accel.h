@@ -357,6 +357,8 @@ typedef struct {
     accel_error_t (*data_read)(uint8_t start_add, uint8_t len, uint8_t *dest);
 
 } accel_t;
+
+extern accel_t a1;
 //==============================================================SET functions
 /**
  * @brief Initializes accelerometer

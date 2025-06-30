@@ -134,8 +134,8 @@ typedef struct int_flg
 
 typedef struct gyro_param{
     /*Function prototypes for read and write registers*/
-    gyroError_t (*funcReadRegs)(uint8_t startAdd, uint16_t len, uint8_t *store);
-    gyroError_t (*funcWriteRegs)(uint8_t startAdd, uint16_t len, uint8_t *store);
+    gyroError_t (*data_read)(uint8_t startAdd, uint16_t len, uint8_t *store);
+    gyroError_t (*data_write)(uint8_t startAdd, uint16_t len, uint8_t *store);
     /*-Calculating values-*/
     drate_t Odr; //Digital output data rate (105/208/420/840)
     gyroPowMode_t PowerMode; // power mode selection (power-down / normal /sleep mode)
@@ -228,6 +228,7 @@ typedef struct gyro_param{
     uint8_t Int1Duration; //Duration value. Default value: 000 0000
 }gyro_t;
 
+extern gyro_t  g1;
 
 /*@brief Initialize Gyro-object - motion sensor type I3G4250D
  * Creates defined connection type, tries to read WHO_AM_I register,
