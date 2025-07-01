@@ -60,30 +60,12 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-gyro_t  g1 = { 0 };
-accel_t a1 = { 0 };
 
-static uint8_t       receiveBuf[32]  = { 0 };
-static uint8_t       transmitBuf[32] = { 0 };
-static uint8_t       intFlag         = 0;
-static float         gyro_bias[3]    = { 0 };
-static float         accel_bias[3]   = { 0 };
-static gyroError_t   gerr            = gyroOk;
-static accel_error_t aerr            = ACCEL_OK;
-static unsigned int  indicator       = 0;
-static uint8_t       slaveAdd        = 0b11010000;
-static uint8_t       timerIntFlag    = 1;
-static uint16_t      timCounter      = 0;
-static uint8_t       dummyByte       = 0;
-static uint8_t       accel_drdy      = 0;
-
-static fifo_state_t fst;
-static uint8_t      data_qty;
-static uint8_t      int_src[6];
-static uint8_t      accel_id;
-static uint8_t      accel_drdy_flag = 0;
-
-static uint32_t counter = 0;
+//static gyroError_t   gerr         = gyroOk;
+//static accel_error_t aerr         = ACCEL_OK;
+//static uint8_t       timerIntFlag = 1;
+//static float         g_val[3]     = { 0 };
+//static uint32_t      indicator    = 0;
 
 /* USER CODE END PV */
 
@@ -91,16 +73,6 @@ static uint32_t counter = 0;
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-
-static gyroError_t
-func_read_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store);
-static gyroError_t
-func_write_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store);
-static accel_error_t
-func_read_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store);
-static accel_error_t
-func_write_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store);
-
 static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi);
 static void PERIF_SPI_Init(void);
 static void PERIF_IO_Init(void);
@@ -147,24 +119,7 @@ int main(void)
     MX_CRC_Init();
     MX_SPI5_Init();
     /* USER CODE BEGIN 2 */
-    //=============================================================GYRO Init
     PERIF_IO_Init();
-
-    g1.data_read  = func_read_gyro_spi;
-    g1.data_write = func_write_gyro_spi;
-    gerr             = gyroInit(&g1);
-    if (gerr != gyroOk)
-        print("Gyro init error! \r\n");
-    //==========================================================END OF GYRO INIT
-
-    //=============================================================ACCEL INIT
-
-    a1.data_write = func_write_accel_spi;
-    a1.data_read  = func_read_accel_spi;
-    aerr          = accel_init(&a1); // set defines
-    if (aerr != ACCEL_OK)
-        print("Accel init error! \r\n");
-    //==========================================================END OF ACCEL INIT
 
     /* USER CODE END 2 */
 
@@ -191,16 +146,15 @@ int main(void)
         //        else
         //            indicator = 0;
         //        char strBuf[200] = { 0 };
-
+        //        gyroReadVal(&g1, g_val);
         //        if (gerr == gyroOk)
-        //            sprintf((char *)strBuf,
-        //                    " %.2f|%.2f|%.2f  *** %u| ID - %u   \r",
-        //                    accel_bias[0],
-        //                    accel_bias[1],
-        //                    accel_bias[2],
+        //            sprintf(strBuf,
+        //                    " %.2f|%.2f|%.2f  *** %u|    \r",
+        //                    g_val[0],
+        //                    g_val[1],
+        //                    g_val[2],
         //
-        //                    indicator,
-        //                    accel_id);
+        //                    indicator);
         //
         //        else
         //            sprintf(strBuf,
@@ -266,126 +220,6 @@ void SystemClock_Config(void)
 //    counter++;
 //}
 
-static gyroError_t
-func_read_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store)
-{
-    HAL_StatusTypeDef err    = HAL_OK;
-    gyroError_t       gerr   = gyroOk;
-    uint8_t           rxByte = 0;
-    uint8_t           txByte = 0;
-
-    if (len > 1) {
-        txByte = (READ << 7) | (MULTIPLY << 6) | (startAdd & 0x3F);
-    } else {
-        txByte = (READ << 7) | (SINGLE << 6) | (startAdd & 0x3F);
-    }
-
-    GYRO_SPI_EN();
-    err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
-
-    for (uint8_t x = 0; x < len; x++) {
-        txByte = 0;
-        err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
-        store[x] = rxByte;
-        rxByte   = 0;
-    }
-    GYRO_SPI_DIS();
-    if (err != HAL_OK)
-        gerr = gyroCommError;
-
-    return gerr;
-}
-
-static gyroError_t
-func_write_gyro_spi(uint8_t startAdd, uint16_t len, uint8_t *store)
-{
-    HAL_StatusTypeDef err    = HAL_OK;
-    gyroError_t       gerr   = gyroOk;
-    uint8_t           rxByte = 0;
-    uint8_t           txByte = 0;
-
-    GYRO_SPI_EN();
-    if (len > 1) {
-        txByte = (WRITE << 7) | (MULTIPLY << 6) | (startAdd & 0x3F);
-    } else {
-        txByte = (WRITE << 7) | (SINGLE << 6) | (startAdd & 0x3F);
-    }
-    err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
-    for (uint8_t x = 0; x < len; x++) {
-        txByte = store[x];
-        rxByte = 0;
-        err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
-    }
-    GYRO_SPI_DIS();
-    if (err != HAL_OK)
-        gerr = gyroCommError;
-    return gerr;
-}
-
-void print(const char *str)
-{
-    if (HAL_UART_Transmit(&huart1, (const uint8_t *)str, strlen(str), 10) !=
-        HAL_OK) {
-        Error_Handler();
-    }
-}
-
-static accel_error_t
-func_read_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store)
-{
-    HAL_StatusTypeDef err    = HAL_OK;
-    gyroError_t       gerr   = gyroOk;
-    uint8_t           rxByte = 0;
-    uint8_t           txByte = 0;
-
-    if (len > 1) {
-        txByte = (READ << 7) | (MULTIPLY << 6) | (startAdd & 0x3F);
-    } else {
-        txByte = (READ << 7) | (SINGLE << 6) | (startAdd & 0x3F);
-    }
-
-    ACCEL_SPI_EN();
-    err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
-
-    for (uint8_t x = 0; x < len; x++) {
-        txByte = 0;
-        err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
-        store[x] = rxByte;
-        rxByte   = 0;
-    }
-    ACCEL_SPI_DIS();
-    if (err != HAL_OK)
-        gerr = gyroCommError;
-
-    return gerr;
-}
-
-static accel_error_t
-func_write_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store)
-{
-    HAL_StatusTypeDef err    = HAL_OK;
-    gyroError_t       gerr   = gyroOk;
-    uint8_t           rxByte = 0;
-    uint8_t           txByte = 0;
-
-    ACCEL_SPI_EN();
-    if (len > 1) {
-        txByte = (WRITE << 7) | (MULTIPLY << 6) | (startAdd & 0x3F);
-    } else {
-        txByte = (WRITE << 7) | (SINGLE << 6) | (startAdd & 0x3F);
-    }
-    err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
-    for (uint8_t x = 0; x < len; x++) {
-        txByte = store[x];
-        rxByte = 0;
-        err = HAL_SPI_TransmitReceive(&hspi5, &txByte, &rxByte, 1, SPI_TIMEOUT);
-    }
-    ACCEL_SPI_DIS();
-    if (err != HAL_OK)
-        gerr = gyroCommError;
-    return gerr;
-}
-
 static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
@@ -416,7 +250,7 @@ static void PERIF_SPI_Init(void)
        - l3gd20 SPI interface max baudrate is 10MHz for write/read
        - PCLK2 frequency is set to 90 MHz
     */
-    hspi5.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+    hspi5.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
 
     /* On STM32F429I-Discovery, LCD ID cannot be read then keep a common configuration */
     /* for LCD and GYRO (SPI_DIRECTION_2LINES) */
@@ -432,8 +266,8 @@ static void PERIF_SPI_Init(void)
     hspi5.Init.TIMode         = SPI_TIMODE_DISABLED;
     hspi5.Init.Mode           = SPI_MODE_MASTER;
 
-    PERIF_SPI_MspInit(&hspi5);
     HAL_SPI_Init(&hspi5);
+    PERIF_SPI_MspInit(&hspi5);
     //  }
 }
 static void PERIF_IO_Init(void)
@@ -459,7 +293,7 @@ static void PERIF_IO_Init(void)
     ACCEL_GPIO_InitStructure.Pin   = ACCEL_CS_PIN;
     ACCEL_GPIO_InitStructure.Mode  = GPIO_MODE_OUTPUT_PP;
     ACCEL_GPIO_InitStructure.Pull  = GPIO_NOPULL;
-    ACCEL_GPIO_InitStructure.Speed = GPIO_SPEED_MEDIUM;
+    ACCEL_GPIO_InitStructure.Speed = GPIO_SPEED_FAST;
     HAL_GPIO_Init(ACCEL_CS_PORT, &ACCEL_GPIO_InitStructure);
 
     /* Deselect: Chip Select high */
@@ -497,9 +331,7 @@ static void PERIF_IO_Init(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     /* USER CODE BEGIN Callback 0 */
-    if (htim->Instance == TIM1) {
-        timerIntFlag = 1;
-    }
+
     /* USER CODE END Callback 0 */
     if (htim->Instance == TIM6) {
         HAL_IncTick();
@@ -521,6 +353,36 @@ void Error_Handler(void)
     while (1) {
     }
     /* USER CODE END Error_Handler_Debug */
+}
+
+void green_led_on(void)
+{
+    HAL_GPIO_WritePin(GPIOG, LD3_Pin, GPIO_PIN_SET);
+}
+
+void green_led_off(void)
+{
+    HAL_GPIO_WritePin(GPIOG, LD3_Pin, GPIO_PIN_RESET);
+}
+
+void green_led_toggle(void)
+{
+    HAL_GPIO_TogglePin(GPIOG, LD3_Pin);
+}
+
+void red_led_on(void)
+{
+    HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_SET);
+}
+
+void red_led_off(void)
+{
+    HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_RESET);
+}
+
+void red_led_toggle(void)
+{
+    HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
 }
 
 #ifdef USE_FULL_ASSERT

@@ -12,22 +12,24 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
-/*
- * creation for tasks -sensors_poll
- * creation for queues - gyro, accel, status
- * defines for queue size
- * functions for queue service (start/stop/get_data)
- * get_data func returns pointer to queue
- * */
+#include "queue.h"
+#include "gyro_I3G4250D.h"
+#include "accel.h"
+#include "timers.h"
 
-#define QUEUE_SIZE 10
+#define QUEUE_SIZE         10
+#define STATUS_POLL_PERIOD pdMS_TO_TICKS(1000) //ms
+#define SENSOR_POLL_PERIOD pdMS_TO_TICKS(500)  //ms
+#define PRINT_PERIOD       pdMS_TO_TICKS(1000) //ms
+#define OPTIMAL_STACK_SIZE 1024
 
+typedef enum { SENSOR_DISABLE, SENSOR_ENABLE } sensor_permission_t;
 /**
  * Task parameters
  * */
 typedef struct {
-    void    *handler;
-    uint32_t poll_period;
+    sensor_permission_t gyro_perm;
+    sensor_permission_t accel_perm;
 } task_param_t;
 
 /**
@@ -46,6 +48,12 @@ typedef enum {
     COMMUNICATION_FAIL,
     SYSTEM_FAIL
 } servise_status_type_t;
+typedef enum { GYRO, ACCEL, SYSTEM } data_source_t;
+
+typedef struct {
+    servise_status_type_t status;
+    data_source_t         source;
+} stat_t;
 
 /**
  * @brief Creates and starts task for sensors poll and queues for measuring data and statuses
@@ -53,9 +61,10 @@ typedef enum {
  * @param accel_enable -  if 1 - new task will be polling the Accelerometer, if 0 - Accelerometer data will be ignored
  * @returns status value
  * */
-servise_status_type_t sensor_poll_start(uint8_t  gyro_enable,
-                                        uint8_t  accel_enable,
-                                        uint16_t queue_size);
+servise_status_type_t sensor_poll_start(sensor_permission_t gyro_enable,
+                                        sensor_permission_t accel_enable,
+                                        uint16_t            queue_size);
+
 /**
  * @brief Stop the task of sensor polling, clears memory
  * @returns status value
@@ -67,20 +76,20 @@ servise_status_type_t sensor_poll_stop(void);
  * @param  *data_queue
  * @returns status value
  * */
-servise_status_type_t gyro_queue_data_get(QueueHandle_t *data_queue);
+QueueHandle_t *gyro_queue_data_get(void);
 
 /**
  * @brief Places the pointer to queue with Accelerometer data into *data_queue variable
  * @param  *data_queue
  * @returns status value
  * */
-servise_status_type_t accel_queue_data_get(QueueHandle_t *data_queue);
+QueueHandle_t *accel_queue_data_get(void);
 
 /**
  * @brief Places the pointer to queue with statuses of sensors into *status_queue
  * @param  *status_queue
  * @returns status value
  * */
-servise_status_type_t sensor_status_monitor(QueueHandle_t *status_queue);
+QueueHandle_t *sensor_status_monitor(void);
 
 #endif /* INC_SENSOR_SERVICE_H_ */
