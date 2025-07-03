@@ -32,6 +32,7 @@
 #include "semphr.h"
 #include "usart.h"
 #include "sensor_service.h"
+#include "log_service.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,14 +53,12 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-uint32_t      t_button              = 4;
-uint32_t      timer_debounce_period = pdMS_TO_TICKS(DEBOUNCE_DELAY);
-TimerHandle_t timer_button_debounce;
-TaskHandle_t  task_default;
-
+uint32_t          t_button              = 4;
+uint32_t          timer_debounce_period = pdMS_TO_TICKS(DEBOUNCE_DELAY);
+TimerHandle_t     timer_button_debounce;
+TaskHandle_t      task_default;
 SemaphoreHandle_t sem_button_debounce;
-
-BaseType_t success_flag = pdFAIL;
+BaseType_t        success_flag = pdFAIL;
 
 enum timer_mode { ONCE_COUNT, AUTORELOAD };
 
@@ -150,10 +149,12 @@ void MX_FREERTOS_Init(void)
                                NULL,
                                osPriorityIdle,
                                &task_default);
-    success_flag &= ~sensor_poll_start(1, 1, 5);
+    success_flag &= ~sensor_poll_start(SENSOR_ENABLE, SENSOR_ENABLE, 10);
+    success_flag &= read_log_service_start();
 
     if (success_flag == pdFAIL)
         print("SYSTEM FAIL: unable to create tasks! \r\n");
+
     /* USER CODE END RTOS_THREADS */
 
     /* USER CODE BEGIN RTOS_EVENTS */

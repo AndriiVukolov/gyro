@@ -358,7 +358,6 @@ typedef struct {
 
 } accel_t;
 
-extern accel_t a1;
 //==============================================================SET functions
 /**
  * @brief Initializes accelerometer

@@ -6,32 +6,23 @@
  */
 #include "sensor_service.h"
 #include "spi.h"
-#include "usart.h"
-#include <string.h>
-#include <stdio.h>
 
-TaskHandle_t task_sensor_handler;
-TaskHandle_t task_print;
+#include "log_service.h"
 
-QueueHandle_t queue_print;
-QueueHandle_t queue_gyro, queue_accel, queue_status;
+static TaskHandle_t task_sensor_handler;
+static TaskHandle_t task_read_logs;
 
-gyro_t       g1               = { 0 };
-accel_t      a1               = { 0 };
-task_param_t sensor_task_data = { 0 };
+static QueueHandle_t queue_gyro, queue_accel, queue_status;
+
+static gyro_t       g1               = { 0 };
+static accel_t      a1               = { 0 };
+static task_param_t sensor_task_data = { 0 };
 
 /**
  * @brief function transmits text over uart
  * @param *str - pointer to string for transmission
  *
  * */
-void print(const char *str)
-{
-    if (HAL_UART_Transmit(&huart1, (const uint8_t *)str, strlen(str), 10) !=
-        HAL_OK) {
-        Error_Handler();
-    }
-}
 
 /**
  * @brief  Reads measured data from Gyroscope over SPI
@@ -156,137 +147,94 @@ static void func_sensors_poll(void *argument)
     queue_data_element_t sensor_data = { 0 };
     queue_data_element_t dummy       = { 0 };
     BaseType_t           op_status   = pdFAIL;
-
-    stat_t task_status = { 0 };
+    stat_t               task_status = { 0 };
+    TickType_t           last_wake_time;
+    last_wake_time = xTaskGetTickCount();
 
     while (1) {
         green_led_toggle();
         if (sensor_task_data.gyro_perm == SENSOR_ENABLE) {
+            //================================================================Read GYRO data
             gerr = gyroReadVal(&g1, vals);
             if (gerr == GYRO_OK) {
-                sensor_data.val_x     = vals[0];
-                sensor_data.val_y     = vals[1];
-                sensor_data.val_z     = vals[2];
-                sensor_data.timestamp = xTaskGetTickCount(); //ms
-
+                sensor_data.val_x = vals[0];
+                sensor_data.val_y = vals[1];
+                sensor_data.val_z = vals[2];
+                sensor_data.timestamp =
+                        (xTaskGetTickCount() * 1000 / configTICK_RATE_HZ); //ms
+                //==============================================================Check if the data is valid
                 if ((sensor_data.val_x == 0) && (sensor_data.val_y == 0) &&
-                    (sensor_data.val_z == 0)) {
-                    task_status.status = SENSOR_FAIL;
-                    task_status.source = GYRO;
-                }
-
-                op_status = xQueueSend(
-                        queue_gyro, &sensor_data, SENSOR_POLL_PERIOD);
+                    (sensor_data.val_z == 0) && (sensor_data.timestamp == 0))
+                    func_logger(
+                            "Measured values of Gyroscope are all equal to zero - it is may be fail;");
+                else
+                    func_logger("GYROSCOPE data successful received");
+                //===============================================================Try to place the data to queue
+                op_status = xQueueSend(queue_gyro, &sensor_data, 0);
                 if (op_status != pdPASS) {
                     op_status &= xQueueReceive(queue_gyro, &dummy, 0);
-                    op_status &= xQueueSend(
-                            queue_gyro, &sensor_data, SENSOR_POLL_PERIOD);
+                    op_status &= xQueueSend(queue_gyro, &sensor_data, 0);
                     if (op_status != pdPASS) {
                         task_status.status = SYSTEM_FAIL;
                         task_status.source = SYSTEM;
+                        func_logger(
+                                "Can`t save Gyroscope data due to queue is fail;");
                     }
                 }
             } else {
                 task_status.status = SENSOR_FAIL;
                 task_status.source = GYRO;
+                func_logger("Can`t read Gyroscope data;");
             }
         }
         if (sensor_task_data.accel_perm == SENSOR_ENABLE) {
+            //================================================================Read ACCEL data
             aerr = accel_data_get(&a1, vals);
             if (aerr == ACCEL_OK) {
-                sensor_data.val_x     = vals[0];
-                sensor_data.val_y     = vals[1];
-                sensor_data.val_z     = vals[2];
-                sensor_data.timestamp = xTaskGetTickCount(); //ms
-
+                sensor_data.val_x = vals[0];
+                sensor_data.val_y = vals[1];
+                sensor_data.val_z = vals[2];
+                sensor_data.timestamp =
+                        (xTaskGetTickCount() * 1000 / configTICK_RATE_HZ); //ms
+                //==============================================================Check if the data is valid
                 if ((sensor_data.val_x == 0) && (sensor_data.val_y == 0) &&
-                    (sensor_data.val_z == 0)) {
-                    task_status.status = SENSOR_FAIL;
-                    task_status.source = ACCEL;
-                }
-
-                op_status &= xQueueSend(
-                        queue_accel, &sensor_data, SENSOR_POLL_PERIOD);
+                    (sensor_data.val_z == 0) && (sensor_data.timestamp == 0)) {
+                    func_logger(
+                            "Measured values of Accelerometer are all equal to zero - it is maybe Antigravity!;");
+                } else
+                    func_logger("ACCELEROMETER data successful received");
+                //===============================================================Try to place the data to queue
+                op_status &= xQueueSend(queue_accel, &sensor_data, 0);
                 if (op_status != pdPASS) {
                     op_status &= xQueueReceive(queue_accel, &dummy, 0);
-                    op_status &= xQueueSend(
-                            queue_accel, &sensor_data, SENSOR_POLL_PERIOD);
+                    op_status &= xQueueSend(queue_accel, &sensor_data, 0);
                     if (op_status != pdPASS) {
                         task_status.status = SYSTEM_FAIL;
                         task_status.source = SYSTEM;
+                        func_logger("Can`t save Accelerometer data;");
                     }
                 }
             } else {
                 task_status.status = SENSOR_FAIL;
                 task_status.source = ACCEL;
+                func_logger("Can`t read Accelerometer data;");
             }
         }
 
-        op_status = xQueueSend(queue_status, &task_status, STATUS_POLL_PERIOD);
+        op_status = xQueueSend(queue_status, &task_status, 0);
         if (op_status != pdPASS) {
             op_status &= xQueueReceive(queue_accel, &dummy, 0);
-            op_status &=
-                    xQueueSend(queue_accel, &task_status, SENSOR_POLL_PERIOD);
+            op_status &= xQueueSend(queue_accel, &task_status, 0);
             if (op_status != pdPASS) {
                 task_status.status = SYSTEM_FAIL;
                 task_status.source = SYSTEM;
+                func_logger("Can`t save status data;");
             }
-        }
-        vTaskDelay(SENSOR_POLL_PERIOD);
+            func_logger("STATUS data successful saved");
+        } else
+            func_logger("STATUS data successful saved");
+        vTaskDelayUntil(&last_wake_time, SENSOR_POLL_PERIOD);
     }
-}
-
-static void func_print(void *argument)
-{
-
-    char                 print_element[100] = { 0 };
-    queue_data_element_t gyro_element       = { 0 };
-    queue_data_element_t accel_element      = { 0 };
-    stat_t               event_element      = { 0 };
-    BaseType_t           data_status        = pdFAIL;
-
-    while (1) {
-        red_led_toggle();
-        if (sensor_task_data.gyro_perm == SENSOR_ENABLE) {
-            data_status = xQueueReceive(
-                    *(gyro_queue_data_get()), &gyro_element, PRINT_PERIOD);
-            if (data_status != pdFAIL) {
-                sprintf(print_element,
-                        "GYRO: X=%f, Y=%f, Z=%f, Timestamp=%lu \r\n",
-                        gyro_element.val_x,
-                        gyro_element.val_y,
-                        gyro_element.val_z,
-                        gyro_element.timestamp);
-            } else
-                sprintf(print_element, "There is no Gyroscope data \r\n");
-
-            print(print_element);
-        }
-        if (sensor_task_data.accel_perm == SENSOR_ENABLE) {
-            data_status = xQueueReceive(
-                    *(accel_queue_data_get()), &accel_element, PRINT_PERIOD);
-            if (data_status != pdFAIL) {
-                sprintf(print_element,
-                        "ACCEL: X=%f, Y=%f, Z=%f, Timestamp=%lu \r\n",
-                        accel_element.val_x,
-                        accel_element.val_y,
-                        accel_element.val_z,
-                        accel_element.timestamp);
-            } else
-                sprintf(print_element, "There is no Accelerometer data \r\n");
-            print(print_element);
-        }
-        data_status = xQueueReceive(
-                *(sensor_status_monitor()), &event_element, PRINT_PERIOD);
-        if ((data_status != pdFAIL) && (event_element.status != STATUS_OK)) {
-            sprintf(print_element,
-                    "Error code %u%u \r\n",
-                    event_element.source,
-                    event_element.status);
-            print(print_element);
-        }
-    }
-    vTaskDelay(PRINT_PERIOD);
 }
 
 servise_status_type_t sensor_poll_start(sensor_permission_t gyro_enable,
@@ -297,46 +245,61 @@ servise_status_type_t sensor_poll_start(sensor_permission_t gyro_enable,
     accel_error_t aerr      = ACCEL_OK;
     BaseType_t    op_status = pdFAIL;
     //===============================================================================QUEUES creation
-    queue_gyro = xQueueCreate(queue_size, sizeof(queue_data_element_t));
+
     if (gyro_enable == SENSOR_ENABLE) {
         //===========================================================================GYRO Init
         sensor_task_data.gyro_perm = SENSOR_ENABLE;
         g1.data_read               = func_read_gyro_spi;
         g1.data_write              = func_write_gyro_spi;
         gerr                       = gyroInit(&g1);
-        if (gerr != GYRO_OK)
-            return (SYSTEM_FAIL);
-        //===========================================================================END OF GYRO INIT
-        if (queue_gyro == NULL) {
+        if (gerr != GYRO_OK) {
+            func_logger("Can`t initialize the Gyroscope;");
             return (SYSTEM_FAIL);
         }
-    } else
-        sensor_task_data.gyro_perm = SENSOR_DISABLE;
 
-    queue_accel = xQueueCreate(queue_size, sizeof(queue_data_element_t));
+        queue_gyro = xQueueCreate(queue_size, sizeof(queue_data_element_t));
+        //===========================================================================END OF GYRO INIT
+        if (queue_gyro == NULL) {
+            func_logger("Can`t create the queue for the Gyroscope data;");
+            return (SYSTEM_FAIL);
+        }
+        func_logger("The Gyroscope is initialized and running;");
+    } else {
+        sensor_task_data.gyro_perm = SENSOR_DISABLE;
+        queue_gyro                 = NULL;
+        func_logger("The Gyroscope is disabled;");
+    }
+
     if (accel_enable == SENSOR_ENABLE) {
         //==========================================================================ACCEL INIT
         sensor_task_data.accel_perm = SENSOR_ENABLE;
         a1.data_write               = func_write_accel_spi;
         a1.data_read                = func_read_accel_spi;
         aerr                        = accel_init(&a1); // set defines
-        if (aerr != ACCEL_OK)
-            return (SYSTEM_FAIL);
-        //=========================================================================END OF ACCEL INIT
-        if (queue_accel == NULL) {
+        if (aerr != ACCEL_OK) {
+            func_logger("Can`t initialize the Accelerometer;");
             return (SYSTEM_FAIL);
         }
-    } else
+
+        queue_accel = xQueueCreate(queue_size, sizeof(queue_data_element_t));
+        //=========================================================================END OF ACCEL INIT
+        if (queue_accel == NULL) {
+            func_logger("Can`t create the queue for the Accelerometer data;");
+            return (SYSTEM_FAIL);
+        }
+        func_logger("The Accelerometer is initialized and running;");
+    } else {
         sensor_task_data.accel_perm = SENSOR_DISABLE;
+        queue_accel                 = NULL;
+        func_logger("The Accelerometer is disabled;");
+    }
 
     queue_status = xQueueCreate(queue_size, sizeof(stat_t));
     if (queue_status == NULL) {
+        func_logger("Can`t create the queue for the Status data;");
         return (SYSTEM_FAIL);
     }
-    queue_print = xQueueCreate(4, sizeof(char[100]));
-    if (queue_print == NULL) {
-        return (SYSTEM_FAIL);
-    }
+
     //===========================================================================TASK creation
     op_status = xTaskCreate(func_sensors_poll,
                             "task_sensors_handler",
@@ -344,15 +307,12 @@ servise_status_type_t sensor_poll_start(sensor_permission_t gyro_enable,
                             (void *)&sensor_task_data,
                             osPriorityBelowNormal1,
                             &task_sensor_handler);
-    op_status &= xTaskCreate(func_print,
-                             "task_print",
-                             OPTIMAL_STACK_SIZE,
-                             (void *)&sensor_task_data,
-                             osPriorityBelowNormal1,
-                             &task_print);
+
     if (op_status != pdPASS) {
         return (SYSTEM_FAIL);
     }
+
+    func_logger("The System is initialized and running;");
     return (STATUS_OK);
 }
 
@@ -360,10 +320,11 @@ servise_status_type_t sensor_poll_stop(void)
 {
 
     vTaskDelete(task_sensor_handler);
-    vTaskDelete(task_print);
+    vTaskDelete(task_read_logs);
     vQueueDelete(queue_gyro);
     vQueueDelete(queue_accel);
     vQueueDelete(queue_status);
+    func_logger("The Sensor_service is stopped, data memory is cleared;");
 
     return (STATUS_OK);
 }
