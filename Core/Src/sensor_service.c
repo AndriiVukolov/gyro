@@ -172,13 +172,12 @@ static void func_sensors_poll(void *argument)
                 //===============================================================Try to place the data to queue
                 op_status = xQueueSend(queue_gyro, &sensor_data, 0);
                 if (op_status != pdPASS) {
-                    op_status &= xQueueReceive(queue_gyro, &dummy, 0);
+                    op_status = xQueueReceive(queue_gyro, &dummy, 0);
                     op_status &= xQueueSend(queue_gyro, &sensor_data, 0);
                     if (op_status != pdPASS) {
                         task_status.status = SYSTEM_FAIL;
                         task_status.source = SYSTEM;
-                        NOTE_ERROR(
-                                "Can`t save Gyroscope data due to queue is fail;");
+                        NOTE_ERROR("Can`t save Gyroscope data due to queue;");
                     }
                 }
             } else {
@@ -206,7 +205,7 @@ static void func_sensors_poll(void *argument)
                 //===============================================================Try to place the data to queue
                 op_status &= xQueueSend(queue_accel, &sensor_data, 0);
                 if (op_status != pdPASS) {
-                    op_status &= xQueueReceive(queue_accel, &dummy, 0);
+                    op_status = xQueueReceive(queue_accel, &dummy, 0);
                     op_status &= xQueueSend(queue_accel, &sensor_data, 0);
                     if (op_status != pdPASS) {
                         task_status.status = SYSTEM_FAIL;
@@ -223,7 +222,7 @@ static void func_sensors_poll(void *argument)
 
         op_status = xQueueSend(queue_status, &task_status, 0);
         if (op_status != pdPASS) {
-            op_status &= xQueueReceive(queue_accel, &dummy, 0);
+            op_status = xQueueReceive(queue_accel, &dummy, 0);
             op_status &= xQueueSend(queue_accel, &task_status, 0);
             if (op_status != pdPASS) {
                 task_status.status = SYSTEM_FAIL;

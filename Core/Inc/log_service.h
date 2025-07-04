@@ -14,11 +14,11 @@
 #define LIBRARY_LOG_NAME "SENSOR_SERVICE"
 #endif
 
+typedef enum { LOG_NONE, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG } log_lvl_t;
+
 #ifndef LIBRARY_LOG_LEVEL
 #define LIBRARY_LOG_LEVEL LOG_INFO
 #endif
-
-typedef enum { LOG_NONE, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG } log_lvl_t;
 
 /**
  * @brief Function for store logging data to log_buffer according to LIBRARY_LOG_LEVEL
