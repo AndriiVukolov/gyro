@@ -357,8 +357,16 @@ typedef struct {
     accel_error_t (*data_read)(uint8_t start_add, uint8_t len, uint8_t *dest);
 
 } accel_t;
-//==============================================================SET functions
 
+//==============================================================SET functions
+/**
+ * @brief Initializes accelerometer
+ * @param *haccel - pointer to accel-object
+ * @retval ACCEL_OK = 0
+ * @retval ACCEL_INIT_FALSE = 1
+ * @retval ACCEL_COMM_FALSE = 2
+ * @retval ACCEL_POWER_FALSE = 3
+ * */
 accel_error_t accel_init(accel_t *haccel);
 
 /**
