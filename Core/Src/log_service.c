@@ -6,17 +6,13 @@
  */
 #include "log_service.h"
 #include "sensor_service.h"
-#include "FreeRTOS.h"
 #include "task.h"
 #include "cmsis_os.h"
-#include "queue.h"
-#include "gyro_I3G4250D.h"
-#include "accel.h"
-#include "timers.h"
 #include "usart.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #define LOG_BUFFER_SIZE 100
 #define LOG_MSG_SIZE    150
@@ -27,37 +23,36 @@ TaskHandle_t  task_print;
 TaskHandle_t  task_read_logs;
 QueueHandle_t queue_print;
 
-char empty[] = { "" };
+const char  empty[]   = { "" };
+const char *txt_lvl[] = { "NONE ", "ERROR ", "WARNING ", "INFO ", "DEBUG " };
 
 char *is_end   = log_buffer[LOG_BUFFER_SIZE];
 char *is_start = log_buffer[0];
 char *buf_head = log_buffer[0];
 char *buf_tail = log_buffer[0];
 
-void func_logger(char *str_to_buf)
+void func_logger(log_lvl_t lvl, const char *log_msg, ...)
 {
-    uint32_t time_stamp = 0;
-    time_stamp          = (xTaskGetTickCount() / configTICK_RATE_HZ);
+    if (lvl > LIBRARY_LOG_LEVEL)
+        return;
+    char     tmp_buf[LOG_MSG_SIZE] = { 0 };
+    uint32_t time_stamp            = 0;
+    time_stamp                     = (xTaskGetTickCount() / configTICK_RATE_HZ);
 
-    sprintf(buf_head, "%lu : %s \r\n", time_stamp, str_to_buf);
+    va_list args;
+    va_start(args, log_msg);
+    sprintf(tmp_buf,
+            "%s [%s] - %lu : %s\r\n",
+            LIBRARY_LOG_NAME,
+            txt_lvl[lvl],
+            time_stamp,
+            log_msg);
+    vsprintf(buf_head, tmp_buf, args);
+    va_end(args);
 
     buf_head += (LOG_MSG_SIZE * sizeof(char));
     if (buf_head >= is_end)
         buf_head = is_start;
-}
-
-void func_logger_data(queue_data_element_t *elt)
-{
-    char *str_to_log = calloc(LOG_MSG_SIZE, sizeof(char));
-
-    sprintf(str_to_log,
-            "X=%f, Y=%f, Z=%f, Timestamp=%lu",
-            elt->val_x,
-            elt->val_y,
-            elt->val_z,
-            elt->timestamp);
-    func_logger(str_to_log);
-    free(str_to_log);
 }
 
 static void func_read_logs(void *arguments)
@@ -95,7 +90,7 @@ BaseType_t read_log_service_start(void)
                             &task_read_logs);
 
     if (op_status == pdFAIL) {
-        func_logger("Can`t create read_logs task; \r\n");
+        NOTE_ERROR("Can`t create read_logs task;");
     }
     return op_status;
 }

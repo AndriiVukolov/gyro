@@ -164,11 +164,11 @@ static void func_sensors_poll(void *argument)
                         (xTaskGetTickCount() * 1000 / configTICK_RATE_HZ); //ms
                 //==============================================================Check if the data is valid
                 if ((sensor_data.val_x == 0) && (sensor_data.val_y == 0) &&
-                    (sensor_data.val_z == 0) && (sensor_data.timestamp == 0))
-                    func_logger(
+                    (sensor_data.val_z == 0) && (sensor_data.timestamp == 0)) {
+                    NOTE_WARN(
                             "Measured values of Gyroscope are all equal to zero - it is may be fail;");
-                else
-                    func_logger("GYROSCOPE data successful received");
+                } else
+                    NOTE_DEBUG("GYROSCOPE data successful received;");
                 //===============================================================Try to place the data to queue
                 op_status = xQueueSend(queue_gyro, &sensor_data, 0);
                 if (op_status != pdPASS) {
@@ -177,14 +177,14 @@ static void func_sensors_poll(void *argument)
                     if (op_status != pdPASS) {
                         task_status.status = SYSTEM_FAIL;
                         task_status.source = SYSTEM;
-                        func_logger(
+                        NOTE_ERROR(
                                 "Can`t save Gyroscope data due to queue is fail;");
                     }
                 }
             } else {
                 task_status.status = SENSOR_FAIL;
                 task_status.source = GYRO;
-                func_logger("Can`t read Gyroscope data;");
+                NOTE_ERROR("Can`t read Gyroscope data;");
             }
         }
         if (sensor_task_data.accel_perm == SENSOR_ENABLE) {
@@ -199,10 +199,10 @@ static void func_sensors_poll(void *argument)
                 //==============================================================Check if the data is valid
                 if ((sensor_data.val_x == 0) && (sensor_data.val_y == 0) &&
                     (sensor_data.val_z == 0) && (sensor_data.timestamp == 0)) {
-                    func_logger(
+                    NOTE_WARN(
                             "Measured values of Accelerometer are all equal to zero - it is maybe Antigravity!;");
                 } else
-                    func_logger("ACCELEROMETER data successful received");
+                    NOTE_DEBUG("ACCELEROMETER data successful received;");
                 //===============================================================Try to place the data to queue
                 op_status &= xQueueSend(queue_accel, &sensor_data, 0);
                 if (op_status != pdPASS) {
@@ -211,13 +211,13 @@ static void func_sensors_poll(void *argument)
                     if (op_status != pdPASS) {
                         task_status.status = SYSTEM_FAIL;
                         task_status.source = SYSTEM;
-                        func_logger("Can`t save Accelerometer data;");
+                        NOTE_ERROR("Can`t save Accelerometer data;");
                     }
                 }
             } else {
                 task_status.status = SENSOR_FAIL;
                 task_status.source = ACCEL;
-                func_logger("Can`t read Accelerometer data;");
+                NOTE_ERROR("Can`t read Accelerometer data;");
             }
         }
 
@@ -228,11 +228,11 @@ static void func_sensors_poll(void *argument)
             if (op_status != pdPASS) {
                 task_status.status = SYSTEM_FAIL;
                 task_status.source = SYSTEM;
-                func_logger("Can`t save status data;");
+                NOTE_ERROR("Can`t save status data;");
             }
-            func_logger("STATUS data successful saved");
+            NOTE_DEBUG("STATUS data successful saved;");
         } else
-            func_logger("STATUS data successful saved");
+            NOTE_DEBUG("STATUS data successful saved;");
         vTaskDelayUntil(&last_wake_time, SENSOR_POLL_PERIOD);
     }
 }
@@ -253,21 +253,21 @@ servise_status_type_t sensor_poll_start(sensor_permission_t gyro_enable,
         g1.data_write              = func_write_gyro_spi;
         gerr                       = gyroInit(&g1);
         if (gerr != GYRO_OK) {
-            func_logger("Can`t initialize the Gyroscope;");
+            NOTE_ERROR("Can`t initialize the Gyroscope;");
             return (SYSTEM_FAIL);
         }
 
         queue_gyro = xQueueCreate(queue_size, sizeof(queue_data_element_t));
         //===========================================================================END OF GYRO INIT
         if (queue_gyro == NULL) {
-            func_logger("Can`t create the queue for the Gyroscope data;");
+            NOTE_ERROR("Can`t create the queue for the Gyroscope data;");
             return (SYSTEM_FAIL);
         }
-        func_logger("The Gyroscope is initialized and running;");
+        NOTE_INFO("The Gyroscope is initialized and running;");
     } else {
         sensor_task_data.gyro_perm = SENSOR_DISABLE;
         queue_gyro                 = NULL;
-        func_logger("The Gyroscope is disabled;");
+        NOTE_INFO("The Gyroscope is disabled;");
     }
 
     if (accel_enable == SENSOR_ENABLE) {
@@ -277,26 +277,26 @@ servise_status_type_t sensor_poll_start(sensor_permission_t gyro_enable,
         a1.data_read                = func_read_accel_spi;
         aerr                        = accel_init(&a1); // set defines
         if (aerr != ACCEL_OK) {
-            func_logger("Can`t initialize the Accelerometer;");
+            NOTE_ERROR("Can`t initialize the Accelerometer;");
             return (SYSTEM_FAIL);
         }
 
         queue_accel = xQueueCreate(queue_size, sizeof(queue_data_element_t));
         //=========================================================================END OF ACCEL INIT
         if (queue_accel == NULL) {
-            func_logger("Can`t create the queue for the Accelerometer data;");
+            NOTE_ERROR("Can`t create the queue for the Accelerometer data;");
             return (SYSTEM_FAIL);
         }
-        func_logger("The Accelerometer is initialized and running;");
+        NOTE_INFO("The Accelerometer is initialized and running;");
     } else {
         sensor_task_data.accel_perm = SENSOR_DISABLE;
         queue_accel                 = NULL;
-        func_logger("The Accelerometer is disabled;");
+        NOTE_INFO("The Accelerometer is disabled;");
     }
 
     queue_status = xQueueCreate(queue_size, sizeof(stat_t));
     if (queue_status == NULL) {
-        func_logger("Can`t create the queue for the Status data;");
+        NOTE_ERROR("Can`t create the queue for the Status data;");
         return (SYSTEM_FAIL);
     }
 
@@ -312,7 +312,7 @@ servise_status_type_t sensor_poll_start(sensor_permission_t gyro_enable,
         return (SYSTEM_FAIL);
     }
 
-    func_logger("The System is initialized and running;");
+    NOTE_INFO("The System is initialized and running;");
     return (STATUS_OK);
 }
 
@@ -324,7 +324,7 @@ servise_status_type_t sensor_poll_stop(void)
     vQueueDelete(queue_gyro);
     vQueueDelete(queue_accel);
     vQueueDelete(queue_status);
-    func_logger("The Sensor_service is stopped, data memory is cleared;");
+    NOTE_INFO("The Sensor_service is stopped, data memory is cleared;");
 
     return (STATUS_OK);
 }

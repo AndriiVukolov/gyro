@@ -5,38 +5,42 @@
  *      Author: andrii-vukolov
  */
 
+#include "FreeRTOS.h"
+
 #ifndef INC_LOG_SERVICE_H_
 #define INC_LOG_SERVICE_H_
 
-#include "logging_levels.h"
-#include "FreeRTOS.h"
-
 #ifndef LIBRARY_LOG_NAME
-#define LIBRARY_LOG_NAME "DEMO-DEVICE"
+#define LIBRARY_LOG_NAME "SENSOR_SERVICE"
 #endif
 
 #ifndef LIBRARY_LOG_LEVEL
 #define LIBRARY_LOG_LEVEL LOG_INFO
 #endif
 
+typedef enum { LOG_NONE, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG } log_lvl_t;
+
 /**
  * @brief Function for store logging data to log_buffer according to LIBRARY_LOG_LEVEL
  * @param *log_msg - text string max length LOG_MSG_SIZE *
  * */
-void func_logger(char *log_msg);
+void func_logger(log_lvl_t lvl, const char *log_msg, ...);
 
-/**
- * @brief Function for store measured data to log_buffer
- * @param *elt - pointer to queue element contain measured data
- * */
-void func_logger_data(queue_data_element_t *elt);
-
-#ifndef SdkLog
-#define SdkLog(message) func_logger message
+#ifndef NOTE_ERROR
+#define NOTE_ERROR(message) func_logger(LOG_ERROR, message)
 #endif
 
-#include "logging_stack.h"
+#ifndef NOTE_WARN
+#define NOTE_WARN(message) func_logger(LOG_WARN, message)
+#endif
 
+#ifndef NOTE_INFO
+#define NOTE_INFO(message) func_logger(LOG_INFO, message)
+#endif
+
+#ifndef NOTE_DEBUG
+#define NOTE_DEBUG(message) func_logger(LOG_DEBUG, message)
+#endif
 /**
  * @brief Create a task for periodically read data stored in log_buffer and send it to UART
  * @return pdPASS - if task is created and running; pdFAIL - if not. *
