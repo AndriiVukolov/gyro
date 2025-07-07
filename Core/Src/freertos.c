@@ -43,7 +43,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define DEBOUNCE_DELAY 200
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -63,7 +62,6 @@ BaseType_t        success_flag = pdFAIL;
 enum timer_mode { ONCE_COUNT, AUTORELOAD };
 
 /* USER CODE END Variables */
-
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 //void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
@@ -122,7 +120,6 @@ void MX_FREERTOS_Init(void)
     /* USER CODE END RTOS_SEMAPHORES */
 
     /* Create the timer(s) */
-
     /* USER CODE BEGIN RTOS_TIMERS */
     /* start timers, add new ones, ... */
     timer_button_debounce = xTimerCreate("timer_button_debounce",
@@ -135,7 +132,6 @@ void MX_FREERTOS_Init(void)
     /* Create the queue(s) */
     /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
-
     /* USER CODE END RTOS_QUEUES */
 
     /* Create the thread(s) */
