@@ -6,6 +6,7 @@
  */
 
 #include "FreeRTOS.h"
+#include "stdarg.h"
 
 #ifndef INC_LOG_SERVICE_H_
 #define INC_LOG_SERVICE_H_
@@ -27,19 +28,19 @@ typedef enum { LOG_NONE, LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG } log_lvl_t;
 void func_logger(log_lvl_t lvl, const char *log_msg, ...);
 
 #ifndef NOTE_ERROR
-#define NOTE_ERROR(message) func_logger(LOG_ERROR, message)
+#define NOTE_ERROR(message, ...) func_logger(LOG_ERROR, message, ##__VA_ARGS__)
 #endif
 
 #ifndef NOTE_WARN
-#define NOTE_WARN(message) func_logger(LOG_WARN, message)
+#define NOTE_WARN(message, ...) func_logger(LOG_WARN, message, ##__VA_ARGS__)
 #endif
 
 #ifndef NOTE_INFO
-#define NOTE_INFO(message) func_logger(LOG_INFO, message)
+#define NOTE_INFO(message, ...) func_logger(LOG_INFO, message, ##__VA_ARGS__)
 #endif
 
 #ifndef NOTE_DEBUG
-#define NOTE_DEBUG(message) func_logger(LOG_DEBUG, message)
+#define NOTE_DEBUG(message, ...) func_logger(LOG_DEBUG, message, ##__VA_ARGS__)
 #endif
 /**
  * @brief Create a task for periodically read data stored in log_buffer and send it to UART

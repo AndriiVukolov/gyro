@@ -12,7 +12,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
+#include "main.h"
+
+//#include <stdarg.h>
 
 #define LOG_BUFFER_SIZE 100
 #define LOG_MSG_SIZE    150
@@ -24,7 +26,7 @@ TaskHandle_t  task_read_logs;
 QueueHandle_t queue_print;
 
 const char  empty[]   = { "" };
-const char *txt_lvl[] = { "NONE ", "ERROR ", "WARNING ", "INFO ", "DEBUG " };
+const char *txt_lvl[] = { "NONE", "ERROR", "WARNING", "INFO", "DEBUG" };
 
 char *is_end   = log_buffer[LOG_BUFFER_SIZE];
 char *is_start = log_buffer[0];
@@ -37,12 +39,12 @@ void func_logger(log_lvl_t lvl, const char *log_msg, ...)
         return;
     char     tmp_buf[LOG_MSG_SIZE] = { 0 };
     uint32_t time_stamp            = 0;
-    time_stamp                     = (xTaskGetTickCount() / configTICK_RATE_HZ);
+    time_stamp = (xTaskGetTickCount() * 1000 / configTICK_RATE_HZ);
 
     va_list args;
     va_start(args, log_msg);
     sprintf(tmp_buf,
-            "%s [%s] - %lu : %s\r\n",
+            "%s [%s] - %lu ms: %s;\r\n",
             LIBRARY_LOG_NAME,
             txt_lvl[lvl],
             time_stamp,

@@ -6,7 +6,6 @@
  */
 #include "sensor_service.h"
 #include "spi.h"
-
 #include "log_service.h"
 
 static TaskHandle_t task_sensor_handler;
@@ -162,6 +161,13 @@ static void func_sensors_poll(void *argument)
                 sensor_data.val_z = vals[2];
                 sensor_data.timestamp =
                         (xTaskGetTickCount() * 1000 / configTICK_RATE_HZ); //ms
+
+                //==============================================================Test log with received values
+                NOTE_INFO("GYRO received: %f, %f, %f ",
+                          sensor_data.val_x,
+                          sensor_data.val_y,
+                          sensor_data.val_z);
+
                 //==============================================================Check if the data is valid
                 if ((sensor_data.val_x == 0) && (sensor_data.val_y == 0) &&
                     (sensor_data.val_z == 0) && (sensor_data.timestamp == 0)) {
@@ -195,6 +201,11 @@ static void func_sensors_poll(void *argument)
                 sensor_data.val_z = vals[2];
                 sensor_data.timestamp =
                         (xTaskGetTickCount() * 1000 / configTICK_RATE_HZ); //ms
+                //==============================================================Test log with received values
+                NOTE_INFO("ACCEL received: %f, %f, %f ",
+                          sensor_data.val_x,
+                          sensor_data.val_y,
+                          sensor_data.val_z);
                 //==============================================================Check if the data is valid
                 if ((sensor_data.val_x == 0) && (sensor_data.val_y == 0) &&
                     (sensor_data.val_z == 0) && (sensor_data.timestamp == 0)) {

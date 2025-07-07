@@ -295,7 +295,6 @@ void Error_Handler(void);
 #define ACCEL_SPI_DIS() \
     HAL_GPIO_WritePin(ACCEL_CS_PORT, ACCEL_CS_PIN, GPIO_PIN_SET)
 
-
 void print(const char *str);
 
 void green_led_on(void);

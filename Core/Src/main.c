@@ -31,14 +31,15 @@
 #include "FreeRTOS.h"
 #include "gyro_I3G4250D.h"
 #include "accel.h"
-#include "stm32f4xx_hal_def.h"
 #include "stm32f4xx.h"
-#include "stm32f429xx.h"
 #include <string.h>
 #include <stdio.h>
 #include "task.h"
 #include "timers.h"
 #include "queue.h"
+
+#define USE_HAL_DRIVERS
+#define HAL_RTC_MODULE_ENABLED
 
 /* USER CODE END Includes */
 
@@ -119,6 +120,7 @@ int main(void)
     MX_CRC_Init();
     MX_SPI5_Init();
     /* USER CODE BEGIN 2 */
+    //rtc_init(&gyro_rtc);
     PERIF_IO_Init();
 
     /* USER CODE END 2 */
@@ -318,6 +320,37 @@ static void PERIF_IO_Init(void)
 
     PERIF_SPI_Init();
 }
+
+void green_led_on(void)
+{
+    HAL_GPIO_WritePin(GPIOG, LD3_Pin, GPIO_PIN_SET);
+}
+
+void green_led_off(void)
+{
+    HAL_GPIO_WritePin(GPIOG, LD3_Pin, GPIO_PIN_RESET);
+}
+
+void green_led_toggle(void)
+{
+    HAL_GPIO_TogglePin(GPIOG, LD3_Pin);
+}
+
+void red_led_on(void)
+{
+    HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_SET);
+}
+
+void red_led_off(void)
+{
+    HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_RESET);
+}
+
+void red_led_toggle(void)
+{
+    HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
+}
+
 /* USER CODE END 4 */
 
 /**
@@ -353,36 +386,6 @@ void Error_Handler(void)
     while (1) {
     }
     /* USER CODE END Error_Handler_Debug */
-}
-
-void green_led_on(void)
-{
-    HAL_GPIO_WritePin(GPIOG, LD3_Pin, GPIO_PIN_SET);
-}
-
-void green_led_off(void)
-{
-    HAL_GPIO_WritePin(GPIOG, LD3_Pin, GPIO_PIN_RESET);
-}
-
-void green_led_toggle(void)
-{
-    HAL_GPIO_TogglePin(GPIOG, LD3_Pin);
-}
-
-void red_led_on(void)
-{
-    HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_SET);
-}
-
-void red_led_off(void)
-{
-    HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_RESET);
-}
-
-void red_led_toggle(void)
-{
-    HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
 }
 
 #ifdef USE_FULL_ASSERT
