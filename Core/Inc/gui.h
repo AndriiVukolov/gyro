@@ -1,0 +1,55 @@
+/*
+ * gui.h
+ *
+ *  Created on: Jul 7, 2025
+ *      Author: andrii-vukolov
+ */
+
+#ifndef INC_GUI_H_
+#define INC_GUI_H_
+
+#include "sensor_service.h"
+
+typedef struct {
+    uint32_t coord_x;
+    uint32_t coord_y;
+    uint32_t color;
+} pixel_t;
+
+typedef struct {
+    uint32_t x1;
+    uint32_t y1;
+    uint32_t x2;
+    uint32_t y2;
+    uint32_t color;
+} line_t;
+
+typedef struct {
+    uint32_t s_x; //Coordinate x of begin
+    uint32_t s_y; //Coordinate y of begin
+    uint32_t lng; //length of vector
+    uint32_t deg; //angle between north direction and vector direction (0 - 359 deg)
+} vector_t;
+
+/**
+ * @brief Draws row at the center of bottom of lcd turned in
+ * @param angle degrees between raw vector the nord direction
+ * @param center - pointer to structure with coordinates of center of raw
+ * Also prints value of angle in the top of screen
+ * */
+void gui_draw_raw(pixel_t *center, uint32_t angle);
+
+/**
+ * @brief calculates current angles based on gyroscope and accelerometer data.
+ * Prints current angle and velocity of angle change at the top of screen
+ * @param data - pointer to structure contained data from gyroscope queue
+ * */
+void gui_draw_gyro_data(queue_data_element_t *data);
+
+/**
+ * @brief Prints last accelerometer data
+ * @param data - pointer to structure contained queue elements of accelerometer
+ * */
+void gui_draw_accel_data(queue_data_element_t *data);
+
+#endif /* INC_GUI_H_ */
