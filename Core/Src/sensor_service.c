@@ -7,6 +7,9 @@
 #include "sensor_service.h"
 #include "spi.h"
 #include "log_service.h"
+#include "gui.h"
+
+static vector_t vector_raw = { 0 };
 
 static TaskHandle_t task_sensor_handler;
 static TaskHandle_t task_read_logs;
@@ -16,6 +19,8 @@ static QueueHandle_t queue_gyro, queue_accel, queue_status;
 static gyro_t       g1               = { 0 };
 static accel_t      a1               = { 0 };
 static task_param_t sensor_task_data = { 0 };
+
+static uint32_t an = 0;
 
 /**
  * @brief function transmits text over uart
@@ -231,6 +236,7 @@ static void func_sensors_poll(void *argument)
             }
         }
 
+
         op_status = xQueueSend(queue_status, &task_status, 0);
         if (op_status != pdPASS) {
             op_status = xQueueReceive(queue_accel, &dummy, 0);
@@ -323,6 +329,7 @@ servise_status_type_t sensor_poll_start(sensor_permission_t gyro_enable,
     }
 
     NOTE_INFO("The System is initialized and running;");
+
     return (STATUS_OK);
 }
 

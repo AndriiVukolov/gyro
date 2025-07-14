@@ -63,6 +63,13 @@ BaseType_t        success_flag = pdFAIL;
 enum timer_mode { ONCE_COUNT, AUTORELOAD };
 
 /* USER CODE END Variables */
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -74,44 +81,25 @@ void func_button_handler(void *argument);
 void func_soft_timer(TimerHandle_t x_timer);
 /* USER CODE END FunctionPrototypes */
 
+void StartDefaultTask(void *argument);
+
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
-
-/* Hook prototypes */
-void vApplicationIdleHook(void);
-
-/* USER CODE BEGIN 2 */
-void vApplicationIdleHook(void)
-{
-    /* vApplicationIdleHook() will only be called if configUSE_IDLE_HOOK is set
-   to 1 in FreeRTOSConfig.h. It will be called on each iteration of the idle
-   task. It is essential that code added to this hook function never attempts
-   to block in any way (for example, call xQueueReceive() with a block time
-   specified, or call vTaskDelay()). If the application makes use of the
-   vTaskDelete() API function (as this demo application does) then it is also
-   important that vApplicationIdleHook() is permitted to return to its calling
-   function, because it is the responsibility of the idle task to clean up
-   memory allocated by the kernel to any task that has since been deleted. */
-}
-
-/* USER CODE END 2 */
 
 /**
   * @brief  FreeRTOS initialization
   * @param  None
   * @retval None
   */
-void MX_FREERTOS_Init(void)
-{
-    /* USER CODE BEGIN Init */
+void MX_FREERTOS_Init(void) {
+  /* USER CODE BEGIN Init */
 
-    /* USER CODE END Init */
+  /* USER CODE END Init */
 
-    /* USER CODE BEGIN RTOS_MUTEX */
+  /* USER CODE BEGIN RTOS_MUTEX */
     /* add mutexes, ... */
-    /* USER CODE END RTOS_MUTEX */
+  /* USER CODE END RTOS_MUTEX */
 
-    /* Create the semaphores(s) */
-    /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
     //    sem_timer_gyro      = xSemaphoreCreateBinary();
     //    sem_timer_accel     = xSemaphoreCreateBinary();
@@ -119,28 +107,27 @@ void MX_FREERTOS_Init(void)
 
     //    sem_data_show       = xSemaphoreCreateBinary();
 
-    /* USER CODE END RTOS_SEMAPHORES */
+  /* USER CODE END RTOS_SEMAPHORES */
 
-    /* Create the timer(s) */
-
-    /* USER CODE BEGIN RTOS_TIMERS */
+  /* USER CODE BEGIN RTOS_TIMERS */
     /* start timers, add new ones, ... */
     timer_button_debounce = xTimerCreate("timer_button_debounce",
                                          timer_debounce_period,
                                          ONCE_COUNT,
                                          (void *)&t_button,
                                          func_soft_timer);
-    /* USER CODE END RTOS_TIMERS */
+  /* USER CODE END RTOS_TIMERS */
 
-    /* Create the queue(s) */
-    /* USER CODE BEGIN RTOS_QUEUES */
+  /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
 
-    /* USER CODE END RTOS_QUEUES */
+  /* USER CODE END RTOS_QUEUES */
 
-    /* Create the thread(s) */
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-    /* USER CODE BEGIN RTOS_THREADS */
+  /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
 
     success_flag = xTaskCreate(StartDefaultTask,
@@ -155,12 +142,13 @@ void MX_FREERTOS_Init(void)
     if (success_flag == pdFAIL)
         print("SYSTEM FAIL: unable to create tasks! \r\n");
 
-    /* USER CODE END RTOS_THREADS */
+  /* USER CODE END RTOS_THREADS */
 
-    /* USER CODE BEGIN RTOS_EVENTS */
+  /* USER CODE BEGIN RTOS_EVENTS */
     /* add events, ... */
 
-    /* USER CODE END RTOS_EVENTS */
+  /* USER CODE END RTOS_EVENTS */
+
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -172,47 +160,12 @@ void MX_FREERTOS_Init(void)
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-    /* USER CODE BEGIN StartDefaultTask */
+  /* USER CODE BEGIN StartDefaultTask */
     /* Infinite loop */
     for (;;) {
         vTaskDelay(1);
     }
-    /* USER CODE END StartDefaultTask */
-}
-
-/* USER CODE BEGIN Header_func_button_handler */
-/**
-* @brief Function implementing the task_2 thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_func_button_handler */
-void func_button_handler(void *argument)
-{
-    /* USER CODE BEGIN func_button_handler */
-    BaseType_t op_status = pdFAIL;
-    /* Infinite loop */
-    while (1) {
-        if (xSemaphoreTake(sem_button_debounce, portMAX_DELAY) == pdPASS) {
-            print("Button pressed \r\n");
-            if (op_status != pdPASS)
-                print("Can`t send message to queue \r\n");
-        }
-        HAL_NVIC_EnableIRQ(BUTTON_EXTI_IRQn);
-    }
-    /* USER CODE END func_button_handler */
-}
-
-/* func_soft_timer function */
-void func_soft_timer(TimerHandle_t x_timer)
-{
-    if (x_timer == timer_button_debounce) {
-        if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin) == GPIO_PIN_SET)
-            xSemaphoreGive(sem_button_debounce);
-        HAL_NVIC_EnableIRQ(BUTTON_EXTI_IRQn);
-    }
-
-    /* USER CODE END func_soft_timer */
+  /* USER CODE END StartDefaultTask */
 }
 
 /* Private application code --------------------------------------------------*/
@@ -228,4 +181,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     }
 }
 
+/* func_soft_timer function */
+void func_soft_timer(TimerHandle_t x_timer)
+{
+    if (x_timer == timer_button_debounce) {
+        if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin) == GPIO_PIN_SET)
+            xSemaphoreGive(sem_button_debounce);
+        HAL_NVIC_EnableIRQ(BUTTON_EXTI_IRQn);
+    }
+
+    /* USER CODE END func_soft_timer */
+}
 /* USER CODE END Application */
+

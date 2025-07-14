@@ -10,6 +10,8 @@
 
 #include "sensor_service.h"
 
+typedef enum { GUI_OK, GUI_FAIL } gui_status_t;
+
 typedef struct {
     uint32_t coord_x;
     uint32_t coord_y;
@@ -31,25 +33,46 @@ typedef struct {
     uint32_t deg; //angle between north direction and vector direction (0 - 359 deg)
 } vector_t;
 
+typedef struct {
+    float yaw_ang;
+    float pitch_ang;
+    float roll_ang;
+    float yaw_vel;
+    float pitch_vel;
+    float roll_vel;
+    float yaw_acc;
+    float pitch_acc;
+    float roll_acc;
+    float raw_angle;
+} gui_frame_data_t;
+
 /**
  * @brief Draws row at the center of bottom of lcd turned in
- * @param angle degrees between raw vector the nord direction
- * @param center - pointer to structure with coordinates of center of raw
- * Also prints value of angle in the top of screen
+ * @param degrees - angle degrees between raw vector the nord direction
  * */
-void gui_draw_raw(pixel_t *center, uint32_t angle);
+void gui_draw_raw(double degrees);
+
+void gui_draw_pitch_val(double degrees);
+
+void gui_clear(void);
+
+void gui_draw_border(void);
 
 /**
  * @brief calculates current angles based on gyroscope and accelerometer data.
  * Prints current angle and velocity of angle change at the top of screen
  * @param data - pointer to structure contained data from gyroscope queue
  * */
-void gui_draw_gyro_data(queue_data_element_t *data);
+void gui_draw_gyro_data(const queue_data_element_t *data);
 
 /**
  * @brief Prints last accelerometer data
  * @param data - pointer to structure contained queue elements of accelerometer
  * */
-void gui_draw_accel_data(queue_data_element_t *data);
+void gui_draw_accel_data(const queue_data_element_t *data);
+
+void gui_init(void);
+
+gui_status_t gui_start(void);
 
 #endif /* INC_GUI_H_ */
