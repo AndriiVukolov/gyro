@@ -53,18 +53,40 @@ typedef struct {
  * */
 void gui_draw_raw(double degrees);
 
+/**
+ * @brief Draws text string with angle value of raw direction
+ * @param degrees - angle value to draw
+ * */
 void gui_draw_pitch_val(double degrees);
 
+/**
+ * @brief Clears whole display (fills it by background color) *
+ * */
 void gui_clear(void);
 
+/**
+ * @brief Draws horizontal line in the middle of display
+ * */
 void gui_draw_border(void);
 
+/**
+ * @brief Clears current pitch value
+ * */
 void gui_clear_pitch_val(void);
 
+/**
+ * @brief Clears current pitch/roll/yaw values
+ * */
 void gui_clear_pry(void);
 
+/**
+ * @brief Clears current raw
+ * */
 void gui_clear_last_raw(void);
 
+/**
+ * @brief Set params of raw to be drawn
+ * */
 void gui_set_raw(uint32_t color, uint32_t len);
 
 /**

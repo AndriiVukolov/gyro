@@ -11,12 +11,6 @@
 #include <math.h>
 #include "main.h"
 #include <stdio.h>
-//#include "../../../Utilities/Fonts/fonts.h"
-//#include "../../../Utilities/Fonts/font24.c"
-//#include "../../../Utilities/Fonts/font20.c"
-//#include "../../../Utilities/Fonts/font16.c"
-//#include "../../../Utilities/Fonts/font12.c"
-//#include "../../../Utilities/Fonts/font8.c"
 
 static TaskHandle_t     task_gui_frame;
 static gui_frame_data_t gui_frame_data = { 0 };
@@ -167,14 +161,6 @@ void gui_init(void)
 
     /* Set the LCD Text Color */
     BSP_LCD_SetTextColor(LCD_COLOR_DARKBLUE);
-
-    /* Display LCD messages */
-    //    BSP_LCD_SetFont(&Font8);
-    //    BSP_LCD_DisplayStringAt(0, 10, (uint8_t *)"STM32F429I BSP", CENTER_MODE);
-    //    BSP_LCD_SetFont(&Font16);
-    //    BSP_LCD_DisplayStringAt(0, 35, (uint8_t *)"Drivers examples", CENTER_MODE);
-
-    //BSP_LCD_DrawHLine(0, (BSP_LCD_GetYSize() / 2), BSP_LCD_GetXSize());
 
     gui_frame_data.yaw_ang   = 60;
     gui_frame_data.pitch_ang = 45;
