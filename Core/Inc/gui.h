@@ -23,6 +23,7 @@ typedef struct {
     uint32_t y1;
     uint32_t x2;
     uint32_t y2;
+    uint32_t len;
     uint32_t color;
 } line_t;
 
@@ -57,6 +58,14 @@ void gui_draw_pitch_val(double degrees);
 void gui_clear(void);
 
 void gui_draw_border(void);
+
+void gui_clear_pitch_val(void);
+
+void gui_clear_pry(void);
+
+void gui_clear_last_raw(void);
+
+void gui_set_raw(uint32_t color, uint32_t len);
 
 /**
  * @brief calculates current angles based on gyroscope and accelerometer data.

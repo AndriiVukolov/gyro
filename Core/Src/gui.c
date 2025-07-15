@@ -20,20 +20,34 @@
 
 static TaskHandle_t     task_gui_frame;
 static gui_frame_data_t gui_frame_data = { 0 };
+static line_t           ln             = { 0 };
+
+#define FRAME_PERIOD 100
+
+void gui_set_raw(uint32_t color, uint32_t len)
+{
+    ln.x1    = BSP_LCD_GetXSize() / 2;
+    ln.y1    = BSP_LCD_GetYSize() / 2 + BSP_LCD_GetYSize() / 4;
+    ln.len   = len;
+    ln.x2    = ln.x1 + ln.len;
+    ln.y2    = ln.y1;
+    ln.color = color;
+}
 
 void gui_draw_raw(double degrees)
 {
-    line_t   ln            = { 0 };
-    uint32_t cx            = BSP_LCD_GetXSize() / 2;
-    uint32_t cy            = BSP_LCD_GetYSize() / 2;
-    uint32_t lenn          = 50;
-    double   angle_radians = degrees * M_PI / 180.0;
 
-    ln.x1 = cx;
-    ln.y1 = cy + cy / 2;
-    ln.x2 = ln.x1 + (lenn * sin(angle_radians));
-    ln.y2 = ln.y1 + (lenn * cos(angle_radians));
+    double angle_radians = degrees * M_PI / 180.0;
 
+    ln.x2 = ln.x1 + (ln.len * sin(angle_radians));
+    ln.y2 = ln.y1 + (ln.len * cos(angle_radians));
+    BSP_LCD_SetTextColor(ln.color);
+    BSP_LCD_DrawLine(ln.x1, ln.y1, ln.x2, ln.y2);
+}
+
+void gui_clear_last_raw(void)
+{
+    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
     BSP_LCD_DrawLine(ln.x1, ln.y1, ln.x2, ln.y2);
 }
 
@@ -41,9 +55,14 @@ void gui_draw_pitch_val(double degrees)
 {
     uint8_t str_buf[60] = { 0 };
 
-    sprintf((char *)str_buf, "YAW ANGLE: %2.2f", degrees);
+    sprintf((char *)str_buf, "YAW ANGLE: %3.2f", degrees);
     BSP_LCD_SetFont(&Font16);
-    BSP_LCD_DisplayStringAt(0, 120, str_buf, CENTER_MODE);
+    BSP_LCD_SetTextColor(LCD_COLOR_DARKBLUE);
+    BSP_LCD_DisplayStringAt(10, 120, str_buf, LEFT_MODE);
+}
+void gui_clear_pitch_val(void)
+{
+    BSP_LCD_ClearStringLine(120);
 }
 
 void gui_clear(void)
@@ -67,7 +86,7 @@ void gui_draw_pry_val(float yaw_ang,
                       float roll_acc)
 {
     char str_buf[60] = { 0 };
-
+    BSP_LCD_SetTextColor(LCD_COLOR_DARKGREEN);
     BSP_LCD_SetFont(&Font16);
     sprintf(str_buf, "%.1f; %.1f; %.1f", yaw_ang, pitch_ang, roll_ang);
     BSP_LCD_DisplayStringAt(10, 10, (uint8_t *)str_buf, LEFT_MODE);
@@ -77,17 +96,28 @@ void gui_draw_pry_val(float yaw_ang,
     BSP_LCD_DisplayStringAt(10, 50, (uint8_t *)str_buf, LEFT_MODE);
 }
 
+void gui_clear_pry(void)
+{
+    BSP_LCD_ClearStringLine(10);
+    BSP_LCD_ClearStringLine(30);
+    BSP_LCD_ClearStringLine(50);
+}
+
 void gui_frame(void *args)
 {
     gui_frame_data_t *frame = NULL;
     frame                   = (gui_frame_data_t *)args;
     static float q          = -1.0;
+    TickType_t   last_wake_time;
+    last_wake_time = xTaskGetTickCount();
 
     while (1) {
-        gui_clear();
-        gui_draw_border();
+
+        gui_clear_pitch_val();
         gui_draw_pitch_val(frame->raw_angle);
+        gui_clear_last_raw();
         gui_draw_raw(frame->raw_angle);
+        gui_clear_pry();
         gui_draw_pry_val(frame->yaw_ang,
                          frame->pitch_ang,
                          frame->roll_ang,
@@ -111,8 +141,9 @@ void gui_frame(void *args)
         else
             gui_frame_data.raw_angle = 0;
         q = (-q);
+
+        vTaskDelayUntil(&last_wake_time, FRAME_PERIOD);
     }
-    vTaskDelay(200 / configTICK_RATE_HZ); //5 fps
 }
 
 void gui_init(void)
@@ -122,6 +153,8 @@ void gui_init(void)
 
     /* Initialize the LCD Layers */
     BSP_LCD_LayerDefaultInit(1, LCD_FRAME_BUFFER);
+
+    //BSP_LCD_LayerDefaultInit(2, (LCD_FRAME_BUFFER * 2));
 
     /* Set LCD Foreground Layer  */
     BSP_LCD_SelectLayer(1);
@@ -136,12 +169,12 @@ void gui_init(void)
     BSP_LCD_SetTextColor(LCD_COLOR_DARKBLUE);
 
     /* Display LCD messages */
-    BSP_LCD_SetFont(&Font8);
-    BSP_LCD_DisplayStringAt(0, 10, (uint8_t *)"STM32F429I BSP", CENTER_MODE);
-    BSP_LCD_SetFont(&Font16);
-    BSP_LCD_DisplayStringAt(0, 35, (uint8_t *)"Drivers examples", CENTER_MODE);
+    //    BSP_LCD_SetFont(&Font8);
+    //    BSP_LCD_DisplayStringAt(0, 10, (uint8_t *)"STM32F429I BSP", CENTER_MODE);
+    //    BSP_LCD_SetFont(&Font16);
+    //    BSP_LCD_DisplayStringAt(0, 35, (uint8_t *)"Drivers examples", CENTER_MODE);
 
-    BSP_LCD_DrawHLine(0, (BSP_LCD_GetYSize() / 2), BSP_LCD_GetXSize());
+    //BSP_LCD_DrawHLine(0, (BSP_LCD_GetYSize() / 2), BSP_LCD_GetXSize());
 
     gui_frame_data.yaw_ang   = 60;
     gui_frame_data.pitch_ang = 45;

@@ -42,7 +42,7 @@
 
 #include "gui.h"
 //#include "ili9341.h"
-//#include "stm32f429i_discovery_lcd.h"
+#include "stm32f429i_discovery_lcd.h"
 //#include "lcd.h"
 
 //#define USE_HAL_DRIVERS
@@ -131,9 +131,10 @@ int main(void)
     /* USER CODE BEGIN 2 */
 
     //rtc_init(&gyro_rtc);
-    //PERIF_IO_Init();
+    PERIF_IO_Init();
     gui_init();
     gui_start();
+    gui_set_raw(LCD_COLOR_RED, 60);
     /* USER CODE END 2 */
 
     /* Init scheduler */
@@ -187,8 +188,8 @@ int main(void)
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow :
   *            System Clock source            = PLL (HSE)
-  *            SYSCLK(Hz)                     = 180000000
-  *            HCLK(Hz)                       = 180000000
+  *            SYSCLK(Hz)                     = 180000000  (180 MHz)
+  *            HCLK(Hz)                       = 180000000  (180 MHz)
   *            AHB Prescaler                  = 1
   *            APB1 Prescaler                 = 4
   *            APB2 Prescaler                 = 2

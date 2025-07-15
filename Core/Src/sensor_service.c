@@ -9,8 +9,6 @@
 #include "log_service.h"
 #include "gui.h"
 
-static vector_t vector_raw = { 0 };
-
 static TaskHandle_t task_sensor_handler;
 static TaskHandle_t task_read_logs;
 
@@ -19,8 +17,6 @@ static QueueHandle_t queue_gyro, queue_accel, queue_status;
 static gyro_t       g1               = { 0 };
 static accel_t      a1               = { 0 };
 static task_param_t sensor_task_data = { 0 };
-
-static uint32_t an = 0;
 
 /**
  * @brief function transmits text over uart
@@ -235,7 +231,6 @@ static void func_sensors_poll(void *argument)
                 NOTE_ERROR("Can`t read Accelerometer data;");
             }
         }
-
 
         op_status = xQueueSend(queue_status, &task_status, 0);
         if (op_status != pdPASS) {
