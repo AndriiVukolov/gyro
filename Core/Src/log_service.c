@@ -59,8 +59,6 @@ void func_logger(log_lvl_t lvl, const char *log_msg, ...)
 
 static void func_read_logs(void *arguments)
 {
-    red_led_toggle();
-
     while (1) {
         if (*buf_tail != *empty) {
             print(buf_tail);

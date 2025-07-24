@@ -141,15 +141,15 @@ func_write_accel_spi(uint8_t startAdd, uint8_t len, uint8_t *store)
 
 static void func_sensors_poll(void *argument)
 {
-    gyroError_t          gerr        = GYRO_OK;
-    accel_error_t        aerr        = ACCEL_OK;
-    float                vals[3]     = { 0 };
-    queue_data_element_t sensor_data = { 0 };
-    queue_data_element_t dummy       = { 0 };
-    BaseType_t           op_status   = pdFAIL;
-    stat_t               task_status = { 0 };
-    TickType_t           last_wake_time;
-    last_wake_time = xTaskGetTickCount();
+    gyroError_t          gerr           = GYRO_OK;
+    accel_error_t        aerr           = ACCEL_OK;
+    float                vals[3]        = { 0 };
+    queue_data_element_t sensor_data    = { 0 };
+    queue_data_element_t dummy          = { 0 };
+    BaseType_t           op_status      = pdFAIL;
+    stat_t               task_status    = { 0 };
+    TickType_t           last_wake_time = 0;
+    last_wake_time                      = xTaskGetTickCount();
 
     while (1) {
         green_led_toggle();

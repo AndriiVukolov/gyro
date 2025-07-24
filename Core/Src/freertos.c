@@ -33,6 +33,9 @@
 #include "usart.h"
 #include "sensor_service.h"
 #include "log_service.h"
+
+#include "main_task.h"
+//#include "stm32f429i_discovery_lcd.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,6 +60,7 @@ uint32_t          t_button              = 4;
 uint32_t          timer_debounce_period = pdMS_TO_TICKS(DEBOUNCE_DELAY);
 TimerHandle_t     timer_button_debounce;
 TaskHandle_t      task_default;
+TaskHandle_t      task_main;
 SemaphoreHandle_t sem_button_debounce;
 BaseType_t        success_flag = pdFAIL;
 
@@ -64,42 +68,40 @@ enum timer_mode { ONCE_COUNT, AUTORELOAD };
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
-osThreadId_t defaultTaskHandle;
+osThreadId_t         defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
-  .name = "defaultTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+    .name       = "defaultTask",
+    .stack_size = 128 * 4,
+    .priority   = (osPriority_t)osPriorityNormal,
 };
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 //void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 
-void StartDefaultTask(void *argument);
-
 void func_button_handler(void *argument);
 void func_soft_timer(TimerHandle_t x_timer);
+void func_main(void *argument);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
-
-void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
   * @brief  FreeRTOS initialization
   * @param  None
   * @retval None
   */
-void MX_FREERTOS_Init(void) {
-  /* USER CODE BEGIN Init */
+void MX_FREERTOS_Init(void)
+{
+    /* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+    /* USER CODE END Init */
 
-  /* USER CODE BEGIN RTOS_MUTEX */
+    /* USER CODE BEGIN RTOS_MUTEX */
     /* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
+    /* USER CODE END RTOS_MUTEX */
 
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
+    /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
     //    sem_timer_gyro      = xSemaphoreCreateBinary();
     //    sem_timer_accel     = xSemaphoreCreateBinary();
@@ -107,27 +109,28 @@ void MX_FREERTOS_Init(void) {
 
     //    sem_data_show       = xSemaphoreCreateBinary();
 
-  /* USER CODE END RTOS_SEMAPHORES */
+    /* USER CODE END RTOS_SEMAPHORES */
 
-  /* USER CODE BEGIN RTOS_TIMERS */
+    /* USER CODE BEGIN RTOS_TIMERS */
     /* start timers, add new ones, ... */
     timer_button_debounce = xTimerCreate("timer_button_debounce",
                                          timer_debounce_period,
                                          ONCE_COUNT,
                                          (void *)&t_button,
                                          func_soft_timer);
-  /* USER CODE END RTOS_TIMERS */
+    /* USER CODE END RTOS_TIMERS */
 
-  /* USER CODE BEGIN RTOS_QUEUES */
+    /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
 
-  /* USER CODE END RTOS_QUEUES */
+    /* USER CODE END RTOS_QUEUES */
 
-  /* Create the thread(s) */
-  /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+    /* Create the thread(s) */
+    /* creation of defaultTask */
+    defaultTaskHandle =
+            osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-  /* USER CODE BEGIN RTOS_THREADS */
+    /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
 
     success_flag = xTaskCreate(StartDefaultTask,
@@ -136,19 +139,23 @@ void MX_FREERTOS_Init(void) {
                                NULL,
                                osPriorityIdle,
                                &task_default);
-    success_flag &= ~sensor_poll_start(SENSOR_ENABLE, SENSOR_ENABLE, 10);
+
+    success_flag &= ~sensor_poll_start( //success returns 0
+            SENSOR_ENABLE,
+            SENSOR_ENABLE,
+            QUEUE_SENSOR_DATA_SIZE);
+    success_flag &= func_main_start(); // success returns >0
     success_flag &= read_log_service_start();
 
     if (success_flag == pdFAIL)
         print("SYSTEM FAIL: unable to create tasks! \r\n");
 
-  /* USER CODE END RTOS_THREADS */
+    /* USER CODE END RTOS_THREADS */
 
-  /* USER CODE BEGIN RTOS_EVENTS */
+    /* USER CODE BEGIN RTOS_EVENTS */
     /* add events, ... */
 
-  /* USER CODE END RTOS_EVENTS */
-
+    /* USER CODE END RTOS_EVENTS */
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -160,16 +167,17 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-  /* USER CODE BEGIN StartDefaultTask */
+    /* USER CODE BEGIN StartDefaultTask */
     /* Infinite loop */
     for (;;) {
         vTaskDelay(1);
     }
-  /* USER CODE END StartDefaultTask */
+    /* USER CODE END StartDefaultTask */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -193,4 +201,3 @@ void func_soft_timer(TimerHandle_t x_timer)
     /* USER CODE END func_soft_timer */
 }
 /* USER CODE END Application */
-

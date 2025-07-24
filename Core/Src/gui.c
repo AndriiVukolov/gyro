@@ -6,17 +6,17 @@
  */
 #include "gui.h"
 #include "ili9341.h"
-#include "stm32f429i_discovery_lcd.h"
+
 #include "lcd.h"
 #include <math.h>
 #include "main.h"
 #include <stdio.h>
+#include "log_service.h"
 
-static TaskHandle_t     task_gui_frame;
-static gui_frame_data_t gui_frame_data = { 0 };
-static line_t           ln             = { 0 };
-
-#define FRAME_PERIOD 100
+static TaskHandle_t  task_gui_frame;
+static QueueHandle_t queue_gui; //queue of data to be displayed
+//static gui_frame_data_t gui_frame_data = { 0 };
+static line_t ln = { 0 };
 
 void gui_set_raw(uint32_t color, uint32_t len)
 {
@@ -97,44 +97,75 @@ void gui_clear_pry(void)
     BSP_LCD_ClearStringLine(50);
 }
 
+servise_status_type_t gui_queue_data_get(gui_frame_data_t *frame)
+{
+    BaseType_t op_status   = pdFAIL;
+    stat_t     task_status = { 0 };
+
+    gui_data_element_t elt;
+
+    op_status = xQueueReceive(queue_gui, &elt, 10);
+    if (op_status != pdPASS) {
+        task_status.status = SYSTEM_FAIL;
+        task_status.source = SYSTEM;
+        NOTE_ERROR("Can`t receive GUI data from queue_gui;");
+    } else {
+        switch (elt.source) {
+        case GYRO: {
+            frame->pitch_vel = elt.val_x;
+            frame->roll_vel  = elt.val_y;
+            frame->yaw_vel   = elt.val_z;
+            break;
+        }
+        case ACCEL: {
+            frame->pitch_acc = elt.val_x;
+            frame->roll_acc  = elt.val_y;
+            frame->yaw_acc   = elt.val_z;
+            break;
+        }
+        }
+        frame->raw_angle   = (float)elt.timestamp / 1000;
+        task_status.status = STATUS_OK;
+    }
+    return task_status.status;
+}
+
+BaseType_t gui_queue_data_put(gui_data_element_t *element)
+{
+    BaseType_t op_status = pdFAIL;
+
+    op_status = xQueueSend(queue_gui, element, 0);
+    if (op_status != pdPASS) {
+        NOTE_ERROR("Can`t put GUI data to queue_gui;");
+    }
+    return op_status;
+}
+
 void gui_frame(void *args)
 {
-    gui_frame_data_t *frame = NULL;
-    frame                   = (gui_frame_data_t *)args;
-    static float q          = -1.0;
-    TickType_t   last_wake_time;
+    //        gui_frame_data_t *frame = NULL;
+    //        frame                   = (gui_frame_data_t *)args;
+    //static float q          = -1.0;
+    gui_frame_data_t frame;
+    TickType_t       last_wake_time;
     last_wake_time = xTaskGetTickCount();
 
     while (1) {
-
+        gui_queue_data_get(&frame);
         gui_clear_pitch_val();
-        gui_draw_pitch_val(frame->raw_angle);
+        gui_draw_pitch_val(frame.raw_angle);
         gui_clear_last_raw();
-        gui_draw_raw(frame->raw_angle);
+        gui_draw_raw(frame.raw_angle);
         gui_clear_pry();
-        gui_draw_pry_val(frame->yaw_ang,
-                         frame->pitch_ang,
-                         frame->roll_ang,
-                         frame->yaw_vel,
-                         frame->pitch_vel,
-                         frame->roll_vel,
-                         frame->yaw_acc,
-                         frame->pitch_acc,
-                         frame->roll_acc);
-        gui_frame_data.yaw_ang   = gui_frame_data.yaw_ang + (5.0 * q);
-        gui_frame_data.pitch_ang = gui_frame_data.pitch_ang + (5.0 * q);
-        gui_frame_data.roll_ang  = gui_frame_data.roll_ang + (5.0 * q);
-        gui_frame_data.yaw_vel   = gui_frame_data.yaw_vel + (5.0 * q);
-        gui_frame_data.pitch_vel = gui_frame_data.pitch_vel + (5.0 * q);
-        gui_frame_data.roll_ang  = gui_frame_data.roll_ang + (5.0 * q);
-        gui_frame_data.yaw_acc   = gui_frame_data.yaw_acc + (5.0 * q);
-        gui_frame_data.pitch_acc = gui_frame_data.pitch_acc + (5.0 * q);
-        gui_frame_data.roll_acc  = gui_frame_data.roll_acc + (5.0 * q);
-        if (gui_frame_data.raw_angle < 359)
-            gui_frame_data.raw_angle = gui_frame_data.raw_angle + (5.0);
-        else
-            gui_frame_data.raw_angle = 0;
-        q = (-q);
+        gui_draw_pry_val(frame.yaw_ang,
+                         frame.pitch_ang,
+                         frame.roll_ang,
+                         frame.yaw_vel,
+                         frame.pitch_vel,
+                         frame.roll_vel,
+                         frame.yaw_acc,
+                         frame.pitch_acc,
+                         frame.roll_acc);
 
         vTaskDelayUntil(&last_wake_time, FRAME_PERIOD);
     }
@@ -161,28 +192,26 @@ void gui_init(void)
 
     /* Set the LCD Text Color */
     BSP_LCD_SetTextColor(LCD_COLOR_DARKBLUE);
-
-    gui_frame_data.yaw_ang   = 60;
-    gui_frame_data.pitch_ang = 45;
-    gui_frame_data.roll_ang  = 30;
-    gui_frame_data.yaw_vel   = 5.1;
-    gui_frame_data.pitch_vel = 6.8;
-    gui_frame_data.roll_ang  = -8.0;
-    gui_frame_data.yaw_acc   = 0.1;
-    gui_frame_data.pitch_acc = 0.8;
-    gui_frame_data.roll_acc  = 9.8;
-    gui_frame_data.raw_angle = 50;
 }
 
-gui_status_t gui_start(void)
+gui_status_t gui_start(uint16_t queue_size)
 {
     BaseType_t op_status = pdFAIL;
+
+    //==========================================================================QUEUE creation
+    queue_gui = xQueueCreate(queue_size, sizeof(gui_data_element_t));
+
+    if (queue_gui == NULL) {
+        NOTE_ERROR("Can`t create the queue for the GUI data;");
+        return (GUI_FAIL);
+    }
+    NOTE_INFO("The GUI is initialized and running;");
 
     //===========================================================================TASK creation
     op_status = xTaskCreate(gui_frame,
                             "task_gui_frame_draw",
                             (OPTIMAL_STACK_SIZE),
-                            (void *)&gui_frame_data,
+                            NULL,
                             osPriorityBelowNormal2,
                             &task_gui_frame);
 

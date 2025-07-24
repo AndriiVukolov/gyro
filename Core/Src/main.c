@@ -39,10 +39,10 @@
 #include "task.h"
 #include "timers.h"
 #include "queue.h"
-
 #include "gui.h"
+
 //#include "ili9341.h"
-#include "stm32f429i_discovery_lcd.h"
+
 //#include "lcd.h"
 
 //#define USE_HAL_DRIVERS
@@ -132,9 +132,11 @@ int main(void)
 
     //rtc_init(&gyro_rtc);
     PERIF_IO_Init();
+
     gui_init();
-    gui_start();
-    gui_set_raw(LCD_COLOR_RED, 60);
+    gui_start(QUEUE_GUI_DATA_LENGTH);
+    gui_set_raw(LCD_COLOR_RED, RAW_LENGTH);
+
     /* USER CODE END 2 */
 
     /* Init scheduler */

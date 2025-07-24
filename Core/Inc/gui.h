@@ -9,6 +9,11 @@
 #define INC_GUI_H_
 
 #include "sensor_service.h"
+#include "stm32f429i_discovery_lcd.h"
+
+#define RAW_LENGTH            60
+#define QUEUE_GUI_DATA_LENGTH 10
+#define FRAME_PERIOD          50
 
 typedef enum { GUI_OK, GUI_FAIL } gui_status_t;
 
@@ -46,6 +51,14 @@ typedef struct {
     float roll_acc;
     float raw_angle;
 } gui_frame_data_t;
+
+typedef struct {
+    float         val_x;
+    float         val_y;
+    float         val_z;
+    uint32_t      timestamp;
+    data_source_t source;
+} gui_data_element_t;
 
 /**
  * @brief Draws row at the center of bottom of lcd turned in
@@ -102,8 +115,30 @@ void gui_draw_gyro_data(const queue_data_element_t *data);
  * */
 void gui_draw_accel_data(const queue_data_element_t *data);
 
+/**
+ * @brief inits gui
+ * */
 void gui_init(void);
 
-gui_status_t gui_start(void);
+/**
+ * @brief Creates queue for data frame and task for displaying one and starts gui service
+ * @param queue_size - size of queue for gui data
+ * @return gui_status_t (GUI_OK = 0, GUI_FAIL = 1)
+ * */
+gui_status_t gui_start(uint16_t queue_size);
+
+/**
+ * @brief Gets one element from gui data queue
+ * @param frame - pointer to data frame to be displayed
+ * @return servise_status_type_t (STATUS_OK = 0)
+ * */
+servise_status_type_t gui_queue_data_get(gui_frame_data_t *frame);
+
+/**
+ * @brief Puts one element to gui data queue
+ * @param element - pointer to data element to be placed into gui data queue
+ * @return BaseType_t (pdFAIL = 0)
+ * */
+BaseType_t gui_queue_data_put(gui_data_element_t *element);
 
 #endif /* INC_GUI_H_ */
