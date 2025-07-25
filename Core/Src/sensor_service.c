@@ -177,10 +177,13 @@ static void func_sensors_poll(void *argument)
                 } else
                     NOTE_DEBUG("GYROSCOPE data successful received;");
                 //===============================================================Try to place the data to queue
-                op_status = xQueueSend(queue_gyro, &sensor_data, 0);
+                op_status = xQueueSend(
+                        queue_gyro, &sensor_data, QUEUE_SEND_TIMEOUT);
                 if (op_status != pdPASS) {
-                    op_status = xQueueReceive(queue_gyro, &dummy, 0);
-                    op_status &= xQueueSend(queue_gyro, &sensor_data, 0);
+                    op_status = xQueueReceive(
+                            queue_gyro, &dummy, QUEUE_RECEIVE_TIMEOUT);
+                    op_status &= xQueueSend(
+                            queue_gyro, &sensor_data, QUEUE_SEND_TIMEOUT);
                     if (op_status != pdPASS) {
                         task_status.status = SYSTEM_FAIL;
                         task_status.source = SYSTEM;
@@ -215,10 +218,13 @@ static void func_sensors_poll(void *argument)
                 } else
                     NOTE_DEBUG("ACCELEROMETER data successful received;");
                 //===============================================================Try to place the data to queue
-                op_status &= xQueueSend(queue_accel, &sensor_data, 0);
+                op_status &= xQueueSend(
+                        queue_accel, &sensor_data, QUEUE_SEND_TIMEOUT);
                 if (op_status != pdPASS) {
-                    op_status = xQueueReceive(queue_accel, &dummy, 0);
-                    op_status &= xQueueSend(queue_accel, &sensor_data, 0);
+                    op_status = xQueueReceive(
+                            queue_accel, &dummy, QUEUE_RECEIVE_TIMEOUT);
+                    op_status &= xQueueSend(
+                            queue_accel, &sensor_data, QUEUE_SEND_TIMEOUT);
                     if (op_status != pdPASS) {
                         task_status.status = SYSTEM_FAIL;
                         task_status.source = SYSTEM;
@@ -232,10 +238,12 @@ static void func_sensors_poll(void *argument)
             }
         }
 
-        op_status = xQueueSend(queue_status, &task_status, 0);
+        op_status = xQueueSend(queue_status, &task_status, QUEUE_SEND_TIMEOUT);
         if (op_status != pdPASS) {
-            op_status = xQueueReceive(queue_accel, &dummy, 0);
-            op_status &= xQueueSend(queue_accel, &task_status, 0);
+            op_status =
+                    xQueueReceive(queue_accel, &dummy, QUEUE_RECEIVE_TIMEOUT);
+            op_status &=
+                    xQueueSend(queue_accel, &task_status, QUEUE_SEND_TIMEOUT);
             if (op_status != pdPASS) {
                 task_status.status = SYSTEM_FAIL;
                 task_status.source = SYSTEM;

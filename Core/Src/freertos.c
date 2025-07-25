@@ -56,13 +56,14 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-uint32_t          t_button              = 4;
-uint32_t          timer_debounce_period = pdMS_TO_TICKS(DEBOUNCE_DELAY);
-TimerHandle_t     timer_button_debounce;
-TaskHandle_t      task_default;
-TaskHandle_t      task_main;
+uint32_t      t_button              = 4;
+uint32_t      timer_debounce_period = pdMS_TO_TICKS(DEBOUNCE_DELAY);
+TimerHandle_t timer_button_debounce;
+TaskHandle_t  task_default;
+
 SemaphoreHandle_t sem_button_debounce;
-BaseType_t        success_flag = pdFAIL;
+
+BaseType_t success_flag = pdFAIL;
 
 enum timer_mode { ONCE_COUNT, AUTORELOAD };
 
@@ -144,8 +145,8 @@ void MX_FREERTOS_Init(void)
             SENSOR_ENABLE,
             SENSOR_ENABLE,
             QUEUE_SENSOR_DATA_SIZE);
-    success_flag &= func_main_start(); // success returns >0
     success_flag &= read_log_service_start();
+    success_flag &= func_main_start(); // success returns >0
 
     if (success_flag == pdFAIL)
         print("SYSTEM FAIL: unable to create tasks! \r\n");

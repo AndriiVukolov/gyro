@@ -21,9 +21,12 @@
 #define STATUS_POLL_PERIOD     pdMS_TO_TICKS(1000) //ms
 #define SENSOR_POLL_PERIOD     pdMS_TO_TICKS(500)  //ms
 #define PRINT_PERIOD           pdMS_TO_TICKS(1000) //ms
-#define OPTIMAL_STACK_SIZE     1024
+#define OPTIMAL_STACK_SIZE     512
+#define QUEUE_RECEIVE_TIMEOUT  100
+#define QUEUE_SEND_TIMEOUT     0
 
 typedef enum { SENSOR_DISABLE, SENSOR_ENABLE } sensor_permission_t;
+
 /**
  * Task parameters
  * */
@@ -48,7 +51,8 @@ typedef enum {
     COMMUNICATION_FAIL,
     SYSTEM_FAIL
 } servise_status_type_t;
-typedef enum { GYRO, ACCEL, SYSTEM } data_source_t;
+
+typedef enum { GYRO, ACCEL, ANGLE, SYSTEM } data_source_t;
 
 typedef struct {
     servise_status_type_t status;

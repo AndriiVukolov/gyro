@@ -135,7 +135,7 @@ int main(void)
 
     gui_init();
     gui_start(QUEUE_GUI_DATA_LENGTH);
-    gui_set_raw(LCD_COLOR_RED, RAW_LENGTH);
+
 
     /* USER CODE END 2 */
 

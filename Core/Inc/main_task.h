@@ -15,6 +15,8 @@
 #include "sensor_service.h"
 #include "gui.h"
 
+#define TASK_TIMEOUT (TickType_t)100
+
 BaseType_t func_main_start(void);
 
 #endif /* INC_MAIN_TASK_H_ */
