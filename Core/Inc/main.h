@@ -264,7 +264,6 @@ void Error_Handler(void);
 #define GYRO_CS_PORT               GPIOC      /* GPIOC */
 #define GYRO_CS_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOC_CLK_ENABLE()
 #define GYRO_CS_GPIO_CLK_DISABLE() __HAL_RCC_GPIOC_CLK_DISABLE()
-
 #define GYRO_INT_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOA_CLK_ENABLE()
 #define GYRO_INT_GPIO_CLK_DISABLE() __HAL_RCC_GPIOA_CLK_DISABLE()
 #define GYRO_INT_GPIO_PORT          GPIOA      /* GPIOA */
@@ -276,16 +275,16 @@ void Error_Handler(void);
 /**
   * @brief  ACCELEROMETER SPI Interface pins
   */
-#define ACCEL_CS_PIN                 GPIO_PIN_3 /* PC.01 */
+#define ACCEL_CS_PIN                 GPIO_PIN_3 /* PC.03 */
 #define ACCEL_CS_PORT                GPIOC      /* GPIOC */
 #define ACCEL_CS_GPIO_CLK_ENABLE()   __HAL_RCC_GPIOC_CLK_ENABLE()
 #define ACCEL_CS_GPIO_CLK_DISABLE()  __HAL_RCC_GPIOC_CLK_DISABLE()
-#define ACCEL_INT_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOA_CLK_ENABLE()
-#define ACCEL_INT_GPIO_CLK_DISABLE() __HAL_RCC_GPIOA_CLK_DISABLE()
-#define ACCEL_INT_GPIO_PORT          GPIOC       /* GPIOA */
-#define ACCEL_INT1_PIN               GPIO_PIN_11 /* PA.01 */
+#define ACCEL_INT_GPIO_CLK_ENABLE()  __HAL_RCC_GPIOC_CLK_ENABLE()
+#define ACCEL_INT_GPIO_CLK_DISABLE() __HAL_RCC_GPIOC_CLK_DISABLE()
+#define ACCEL_INT_GPIO_PORT          GPIOC       /* GPIOC */
+#define ACCEL_INT1_PIN               GPIO_PIN_11 /* PC.11 */
 #define ACCEL_INT1_EXTI_IRQn         EXTI1_IRQn
-#define ACCEL_INT2_PIN               GPIO_PIN_12 /* PA.02 */
+#define ACCEL_INT2_PIN               GPIO_PIN_12 /* PC.12 */
 #define ACCEL_INT2_EXTI_IRQn         EXTI2_IRQn
 
 /* Chip Select macro definition */

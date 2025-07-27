@@ -123,10 +123,10 @@ int main(void)
     MX_GPIO_Init();
     MX_FMC_Init();
     MX_USART1_UART_Init();
-    MX_CRC_Init();
+    //MX_CRC_Init();
     MX_SPI5_Init();
     MX_DMA2D_Init();
-    MX_I2C3_Init();
+    //MX_I2C3_Init();
     MX_LTDC_Init();
     /* USER CODE BEGIN 2 */
 
@@ -260,10 +260,10 @@ void SystemClock_Config(void)
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
     RCC_OscInitStruct.HSEState       = RCC_HSE_ON;
     RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSE;
-    RCC_OscInitStruct.PLL.PLLM       = 8;
-    RCC_OscInitStruct.PLL.PLLN       = 360;
-    RCC_OscInitStruct.PLL.PLLP       = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSE;//Quartz 8 MHz
+    RCC_OscInitStruct.PLL.PLLM       = 8;//Divider by 8 = 1 MHz
+    RCC_OscInitStruct.PLL.PLLN       = 360;//Multiplier by 360 = 360 MHz
+    RCC_OscInitStruct.PLL.PLLP       = RCC_PLLP_DIV2;// Divifer by 2 = 180 MHz = SYSTEM CLOCK
     RCC_OscInitStruct.PLL.PLLQ       = 7;
     HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
@@ -274,10 +274,10 @@ void SystemClock_Config(void)
 	     clocks dividers */
     RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK |
                                    RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
-    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;
-    RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;//180 MHz
+    RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;//180 MHz
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;//45MHz Max (SPI2, SPI3)
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;//90 MHz max (SPI1, SPI5, SPI5, SPI6)
     HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
 }
 
@@ -302,7 +302,7 @@ static void PERIF_SPI_MspInit(SPI_HandleTypeDef *hspi)
     GPIO_InitStructure.Pin       = (GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9);
     GPIO_InitStructure.Mode      = GPIO_MODE_AF_PP;
     GPIO_InitStructure.Pull      = GPIO_PULLDOWN;
-    GPIO_InitStructure.Speed     = GPIO_SPEED_MEDIUM;
+    GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_HIGH;
     GPIO_InitStructure.Alternate = GPIO_AF5_SPI5;
     HAL_GPIO_Init(GPIOF, &GPIO_InitStructure);
 }
@@ -316,7 +316,7 @@ static void PERIF_SPI_Init(void)
     /* SPI baudrate is set to 5.6 MHz (PCLK2/SPI_BaudRatePrescaler = 90/16 = 5.625 MHz)
 
        - l3gd20 SPI interface max baudrate is 10MHz for write/read
-       - PCLK2 frequency is set to 90 MHz
+       - PCLK2 frequency is set to 45 MHz
     */
     hspi5.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
 
@@ -348,20 +348,20 @@ static void PERIF_IO_Init(void)
     GYRO_GPIO_InitStructure.Pin   = GYRO_CS_PIN;
     GYRO_GPIO_InitStructure.Mode  = GPIO_MODE_OUTPUT_PP;
     GYRO_GPIO_InitStructure.Pull  = GPIO_NOPULL;
-    GYRO_GPIO_InitStructure.Speed = GPIO_SPEED_MEDIUM;
+    GYRO_GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(GYRO_CS_PORT, &GYRO_GPIO_InitStructure);
 
     GYRO_SPI_DIS();
 
     GPIO_InitTypeDef ACCEL_GPIO_InitStructure;
 
-    /* Configure the Gyroscope Control pins ------------------------------------*/
-    /* Enable CS GPIO clock and Configure GPIO PIN for Gyroscope Chip select */
+    /* Configure the Accelerometer Control pins ------------------------------------*/
+    /* Enable CS GPIO clock and Configure GPIO PIN for Accelerometer Chip select */
     ACCEL_CS_GPIO_CLK_ENABLE();
     ACCEL_GPIO_InitStructure.Pin   = ACCEL_CS_PIN;
     ACCEL_GPIO_InitStructure.Mode  = GPIO_MODE_OUTPUT_PP;
     ACCEL_GPIO_InitStructure.Pull  = GPIO_NOPULL;
-    ACCEL_GPIO_InitStructure.Speed = GPIO_SPEED_FAST;
+    ACCEL_GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(ACCEL_CS_PORT, &ACCEL_GPIO_InitStructure);
 
     /* Deselect: Chip Select high */
