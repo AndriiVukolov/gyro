@@ -39,35 +39,35 @@ typedef struct {
     uint32_t deg; //angle between north direction and vector direction (0 - 359 deg)
 } vector_t;
 
-static line_t ln = { 0 }; //
+static line_t a_ln = { 0 }; //
 
 /**
  * @brief Set params of line to be drawn
  * */
-static void gui_set_compass_line(uint32_t color, uint32_t len)
+static void gui_set_compass_line(line_t *ln, uint32_t color, uint32_t len)
 {
-    ln.x1    = BSP_LCD_GetXSize() / 2;
-    ln.y1    = BSP_LCD_GetYSize() / 2 + BSP_LCD_GetYSize() / 4;
-    ln.len   = len;
-    ln.x2    = ln.x1 + ln.len;
-    ln.y2    = ln.y1;
-    ln.color = color;
+    ln->x1    = BSP_LCD_GetXSize() / 2;
+    ln->y1    = BSP_LCD_GetYSize() / 2 + BSP_LCD_GetYSize() / 4;
+    ln->len   = len;
+    ln->x2    = ln->x1 + ln->len;
+    ln->y2    = ln->y1;
+    ln->color = color;
 }
 
 /**
  * @brief Draws line at the center of bottom of lcd turned in
  * @param degrees - angle degrees between the line the nord direction
  * */
-static void gui_draw_compass_line(double degrees)
+static void gui_draw_compass_line(line_t *ln, double degrees)
 {
     double angle_radians = degrees * M_PI / 180.0;
 
     BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-    BSP_LCD_DrawLine(ln.x1, ln.y1, ln.x2, ln.y2);
-    ln.x2 = ln.x1 + (ln.len * sin(angle_radians));
-    ln.y2 = ln.y1 + (ln.len * cos(angle_radians));
-    BSP_LCD_SetTextColor(ln.color);
-    BSP_LCD_DrawLine(ln.x1, ln.y1, ln.x2, ln.y2);
+    BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
+    ln->x2 = ln->x1 + (ln->len * sin(angle_radians));
+    ln->y2 = ln->y1 + (ln->len * cos(angle_radians));
+    BSP_LCD_SetTextColor(ln->color);
+    BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
 }
 
 /**
@@ -179,7 +179,7 @@ static void gui_frame(void *args)
         if (op_status != pdFAIL) {
             gui_draw_pitch_val(frame.raw_angle);
             gui_draw_border();
-            gui_draw_compass_line(frame.raw_angle);
+            gui_draw_compass_line(&a_ln, frame.raw_angle);
             gui_draw_pry_val(frame.yaw_ang,
                              frame.pitch_ang,
                              frame.roll_ang,
@@ -215,7 +215,7 @@ void gui_init(void)
     /* Set the LCD Text Color */
     BSP_LCD_SetTextColor(MANE_STRING_COLOR);
 
-    gui_set_compass_line(LINE_COLOR, LINE_LENGTH);
+    gui_set_compass_line(&a_ln, LINE_COLOR, LINE_LENGTH);
 }
 
 gui_status_t gui_start(uint16_t queue_size)

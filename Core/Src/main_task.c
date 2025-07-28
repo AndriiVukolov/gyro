@@ -70,15 +70,15 @@ static servise_status_type_t gui_data_transfer(void)
         elt_out.pitch_vel = gyro_elt_in.val_x;
         elt_out.roll_vel  = gyro_elt_in.val_y;
         elt_out.yaw_vel   = gyro_elt_in.val_z;
-        elt_out.raw_angle = gyro_elt_in.timestamp;
+        elt_out.raw_angle = (float)gyro_elt_in.timestamp / 100;
     }
     //get data from accel queue and place it to buffer accel_elt_in
     stat |= accel_get(&accel_elt_in);
     if (stat == STATUS_OK) {
-        elt_out.pitch_acc = accel_elt_in.val_x;
-        elt_out.roll_acc  = accel_elt_in.val_y;
-        elt_out.yaw_acc   = accel_elt_in.val_z;
-        elt_out.raw_angle = accel_elt_in.timestamp;
+        elt_out.pitch_acc = accel_elt_in.val_x / 100;
+        elt_out.roll_acc  = accel_elt_in.val_y / 100;
+        elt_out.yaw_acc   = accel_elt_in.val_z / 100;
+        elt_out.raw_angle = (float)accel_elt_in.timestamp / 100;
     }
     //calculate
     stat |= angle_calc(&accel_elt_in, &angle_elt);

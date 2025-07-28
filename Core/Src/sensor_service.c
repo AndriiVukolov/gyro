@@ -241,9 +241,9 @@ static void func_sensors_poll(void *argument)
         op_status = xQueueSend(queue_status, &task_status, QUEUE_SEND_TIMEOUT);
         if (op_status != pdPASS) {
             op_status =
-                    xQueueReceive(queue_accel, &dummy, QUEUE_RECEIVE_TIMEOUT);
+                    xQueueReceive(queue_status, &dummy, QUEUE_RECEIVE_TIMEOUT);
             op_status &=
-                    xQueueSend(queue_accel, &task_status, QUEUE_SEND_TIMEOUT);
+                    xQueueSend(queue_status, &task_status, QUEUE_SEND_TIMEOUT);
             if (op_status != pdPASS) {
                 task_status.status = SYSTEM_FAIL;
                 task_status.source = SYSTEM;
