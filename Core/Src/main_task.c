@@ -11,6 +11,7 @@
 #include "semphr.h"
 #include "main_task.h"
 #include "log_service.h"
+#include "math.h"
 
 TaskHandle_t      task_main;
 SemaphoreHandle_t data_put_block = NULL;
@@ -50,9 +51,14 @@ static servise_status_type_t gyro_get(queue_data_element_t *gelt)
 static servise_status_type_t angle_calc(queue_data_element_t *in_elt,
                                         queue_data_element_t *out_elt)
 {
-    out_elt->val_x = in_elt->val_x;
-    out_elt->val_y = in_elt->val_y;
-    out_elt->val_z = in_elt->val_z;
+
+    float x        = in_elt->val_x;
+    float y        = in_elt->val_y;
+    float z        = in_elt->val_z;
+    out_elt->val_x = (180 / M_PI) * acos(x / sqrt(z * z + x * x));
+    out_elt->val_y = (180 / M_PI) * acos(y / sqrt(x * x + y * y));
+    out_elt->val_z = (180 / M_PI) * acos(z / sqrt(z * z + y * y));
+
     return STATUS_OK;
 }
 
