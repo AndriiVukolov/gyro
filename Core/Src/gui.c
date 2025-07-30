@@ -39,8 +39,9 @@ typedef struct {
     uint32_t deg; //angle between north direction and vector direction (0 - 359 deg)
 } vector_t;
 
-static line_t a_ln = { 0 }; //
-
+line_t           compass_line = { 0 }; //
+gui_frame_data_t frame_prev   = { 0 };
+gui_frame_data_t frame        = { 0 };
 /**
  * @brief Set params of line to be drawn
  * */
@@ -58,32 +59,35 @@ static void gui_set_compass_line(line_t *ln, uint32_t color, uint32_t len)
  * @brief Draws line at the center of bottom of lcd turned in
  * @param degrees - angle degrees between the line the nord direction
  * */
-static void gui_draw_compass_line(line_t *ln, double degrees)
+static void gui_draw_compass_line(line_t *ln, gui_frame_data_t *fr)
 {
-    double angle_radians = degrees * M_PI / 180.0;
+    if (fr->line_changed != 0) {
+        double angle_radians = fr->line_angle * M_PI / 180.0;
 
-    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-    BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
-    ln->x2 = ln->x1 + (ln->len * sin(angle_radians));
-    ln->y2 = ln->y1 + (ln->len * cos(angle_radians));
-    BSP_LCD_SetTextColor(ln->color);
-    BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
+        BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+        BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
+        ln->x2 = ln->x1 + (ln->len * sin(angle_radians));
+        ln->y2 = ln->y1 + (ln->len * cos(angle_radians));
+        BSP_LCD_SetTextColor(ln->color);
+        BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
+    }
 }
 
 /**
  * @brief Draws text string with angle value of compass line direction
  * @param degrees - angle value to draw
  * */
-static void gui_draw_pitch_val(double degrees)
+static void gui_draw_pitch_val(gui_frame_data_t *fr)
 {
-    uint8_t str_buf[MAX_TXT_LINE_LEN] = { 0 };
-
-    sprintf((char *)str_buf, "YAW ANGLE: %3.2f", degrees);
-    BSP_LCD_ClearStringLine(Y_POS_STRING_MAIN);
-    BSP_LCD_SetFont(&Font16);
-    BSP_LCD_SetTextColor(LCD_COLOR_DARKBLUE);
-    BSP_LCD_DisplayStringAt(
-            X_POS_STRING, Y_POS_STRING_MAIN, str_buf, LEFT_MODE);
+    if (fr->line_changed != 0) {
+        uint8_t str_buf[MAX_TXT_LINE_LEN] = { 0 };
+        sprintf((char *)str_buf, "YAW ANGLE: %3.2f", fr->line_angle);
+        BSP_LCD_ClearStringLine(Y_POS_STRING_5);
+        BSP_LCD_SetFont(&Font16);
+        BSP_LCD_SetTextColor(LCD_COLOR_DARKBLUE);
+        BSP_LCD_DisplayStringAt(
+                X_POS_STRING, Y_POS_STRING_5, str_buf, LEFT_MODE);
+    }
 }
 
 /**
@@ -103,33 +107,43 @@ static void gui_draw_border(void)
     BSP_LCD_DrawHLine(X_BORDER_POS, Y_BORDER_POS, BSP_LCD_GetXSize());
 }
 
-static void gui_draw_pry_val(float yaw_ang,
-                             float pitch_ang,
-                             float roll_ang,
-                             float yaw_vel,
-                             float pitch_vel,
-                             float roll_vel,
-                             float yaw_acc,
-                             float pitch_acc,
-                             float roll_acc)
+static void gui_draw_pry_val(gui_frame_data_t *frame_to_display)
 {
     char str_buf[MAX_TXT_LINE_LEN] = { 0 };
 
-    BSP_LCD_ClearStringLine(Y_POS_STRING_1);
-    BSP_LCD_ClearStringLine(Y_POS_STRING_2);
-    BSP_LCD_ClearStringLine(Y_POS_STRING_3);
-
     BSP_LCD_SetTextColor(VALUES_COLOR);
     BSP_LCD_SetFont(&Font16);
-    sprintf(str_buf, "An: %.1f; %.1f; %.1f     ", yaw_ang, pitch_ang, roll_ang);
-    BSP_LCD_DisplayStringAt(
-            X_POS_STRING, Y_POS_STRING_1, (uint8_t *)str_buf, LEFT_MODE);
-    sprintf(str_buf, "Ve: %.1f; %.1f; %.1f     ", yaw_vel, pitch_vel, roll_vel);
-    BSP_LCD_DisplayStringAt(
-            X_POS_STRING, Y_POS_STRING_2, (uint8_t *)str_buf, LEFT_MODE);
-    sprintf(str_buf, "Ac: %.1f; %.1f; %.1f     ", yaw_acc, pitch_acc, roll_acc);
-    BSP_LCD_DisplayStringAt(
-            X_POS_STRING, Y_POS_STRING_3, (uint8_t *)str_buf, LEFT_MODE);
+
+    if (frame_to_display->str_ang_changed == 1) {
+        //BSP_LCD_ClearStringLine(Y_POS_STRING_1);
+        sprintf(str_buf,
+                "An: %.1f; %.1f; %.1f     ",
+                frame_to_display->yaw_ang,
+                frame_to_display->pitch_ang,
+                frame_to_display->roll_ang);
+        BSP_LCD_DisplayStringAt(
+                X_POS_STRING, Y_POS_STRING_1, (uint8_t *)str_buf, LEFT_MODE);
+    }
+    if (frame_to_display->str_vel_changed == 1) {
+        //BSP_LCD_ClearStringLine(Y_POS_STRING_2);
+        sprintf(str_buf,
+                "Ve: %.1f; %.1f; %.1f     ",
+                frame_to_display->yaw_vel,
+                frame_to_display->pitch_vel,
+                frame_to_display->roll_vel);
+        BSP_LCD_DisplayStringAt(
+                X_POS_STRING, Y_POS_STRING_2, (uint8_t *)str_buf, LEFT_MODE);
+    }
+    if (frame_to_display->str_vel_changed == 1) {
+        //BSP_LCD_ClearStringLine(Y_POS_STRING_3);
+        sprintf(str_buf,
+                "Ac: %.1f; %.1f; %.1f     ",
+                frame_to_display->yaw_acc,
+                frame_to_display->pitch_acc,
+                frame_to_display->roll_acc);
+        BSP_LCD_DisplayStringAt(
+                X_POS_STRING, Y_POS_STRING_3, (uint8_t *)str_buf, LEFT_MODE);
+    }
 }
 
 /**
@@ -143,6 +157,7 @@ static servise_status_type_t gui_queue_data_get(gui_frame_data_t *frame)
     stat_t     task_status = { 0 };
 
     op_status = xQueueReceive(queue_gui, frame, QUEUE_GUI_TIMEOUT);
+
     if (op_status != pdPASS) {
         task_status.status = SYSTEM_FAIL;
         task_status.source = SYSTEM;
@@ -151,6 +166,57 @@ static servise_status_type_t gui_queue_data_get(gui_frame_data_t *frame)
         task_status.status = STATUS_OK;
     }
     return task_status.status;
+}
+
+static void frame_compare_and_replace(gui_frame_data_t *frame_old,
+                                      gui_frame_data_t *frame_new)
+{
+    frame_new->str_acc_changed = 0;
+    frame_new->str_ang_changed = 0;
+    frame_new->str_vel_changed = 0;
+    frame_new->line_changed    = 0;
+
+    if (frame_new->pitch_acc != frame_old->pitch_acc) {
+        frame_new->str_acc_changed = 1;
+        frame_old->pitch_acc       = frame_new->pitch_acc;
+    }
+    if (frame_new->yaw_acc != frame_old->yaw_acc) {
+        frame_new->str_acc_changed = 1;
+        frame_old->yaw_acc         = frame_new->yaw_acc;
+    }
+    if (frame_new->roll_acc != frame_old->roll_acc) {
+        frame_new->str_acc_changed = 1;
+        frame_old->roll_acc        = frame_new->roll_acc;
+    }
+
+    if (frame_new->pitch_vel != frame_old->pitch_vel) {
+        frame_new->str_vel_changed = 1;
+        frame_old->pitch_vel       = frame_new->pitch_vel;
+    }
+    if (frame_new->yaw_vel != frame_old->yaw_vel) {
+        frame_new->str_vel_changed = 1;
+        frame_old->yaw_vel         = frame_new->yaw_vel;
+    }
+    if (frame_new->roll_vel != frame_old->roll_vel) {
+        frame_new->str_vel_changed = 1;
+        frame_old->roll_vel        = frame_new->roll_vel;
+    }
+    if (frame_new->pitch_ang != frame_old->pitch_ang) {
+        frame_new->str_ang_changed = 1;
+        frame_old->pitch_ang       = frame_new->pitch_ang;
+    }
+    if (frame_new->yaw_ang != frame_old->yaw_ang) {
+        frame_new->str_ang_changed = 1;
+        frame_old->yaw_ang         = frame_new->yaw_ang;
+    }
+    if (frame_new->roll_ang != frame_old->roll_ang) {
+        frame_new->str_ang_changed = 1;
+        frame_old->roll_ang        = frame_new->roll_ang;
+    }
+    if (frame_new->line_angle != frame_old->line_angle) {
+        frame_new->line_changed = 1;
+        frame_old->line_angle   = frame_new->line_angle;
+    }
 }
 
 BaseType_t gui_queue_data_put(gui_frame_data_t *element)
@@ -169,28 +235,16 @@ BaseType_t gui_queue_data_put(gui_frame_data_t *element)
 
 static void gui_frame(void *args)
 {
-    gui_frame_data_t frame;
-    TickType_t       last_wake_time;
-    last_wake_time       = xTaskGetTickCount();
-    BaseType_t op_status = pdFAIL;
+
+    TickType_t last_wake_time;
+    last_wake_time = xTaskGetTickCount();
 
     while (1) {
-        op_status = gui_queue_data_get(&frame);
-        if (op_status != pdFAIL) {
-            gui_draw_pitch_val(frame.raw_angle);
-            gui_draw_border();
-            gui_draw_compass_line(&a_ln, frame.raw_angle);
-            gui_draw_pry_val(frame.yaw_ang,
-                             frame.pitch_ang,
-                             frame.roll_ang,
-                             frame.yaw_vel,
-                             frame.pitch_vel,
-                             frame.roll_vel,
-                             frame.yaw_acc,
-                             frame.pitch_acc,
-                             frame.roll_acc);
-        }
-
+        gui_queue_data_get(&frame);
+        frame_compare_and_replace(&frame_prev, &frame);
+        gui_draw_pry_val(&frame);
+        gui_draw_pitch_val(&frame);
+        gui_draw_compass_line(&compass_line, &frame);
         vTaskDelayUntil(&last_wake_time, FRAME_PERIOD);
     }
 }
@@ -199,23 +253,18 @@ void gui_init(void)
 {
     /* Initialize the LCD */
     BSP_LCD_Init();
-
     /* Initialize the LCD Layers */
     BSP_LCD_LayerDefaultInit(MAIN_LCD_LAYER, LCD_FRAME_BUFFER);
-
     /* Set LCD Foreground Layer  */
     BSP_LCD_SelectLayer(MAIN_LCD_LAYER);
-
     BSP_LCD_SetFont(&LCD_DEFAULT_FONT);
-
     /* Clear the LCD */
     BSP_LCD_SetBackColor(BACKGROUND_COLOR);
     BSP_LCD_Clear(BACKGROUND_COLOR);
-
     /* Set the LCD Text Color */
     BSP_LCD_SetTextColor(MANE_STRING_COLOR);
-
-    gui_set_compass_line(&a_ln, LINE_COLOR, LINE_LENGTH);
+    gui_set_compass_line(&compass_line, LINE_COLOR, LINE_LENGTH);
+    gui_draw_border();
 }
 
 gui_status_t gui_start(uint16_t queue_size)

@@ -113,29 +113,29 @@ int main(void)
     /* USER CODE END Init */
 
     /* Configure the system clock */
-    SystemClock_Config();
 
     /* USER CODE BEGIN SysInit */
-
-    /* USER CODE END SysInit */
-
-    /* Initialize all configured peripherals */
+    SystemClock_Config();
     MX_GPIO_Init();
     MX_FMC_Init();
     MX_USART1_UART_Init();
-    //MX_CRC_Init();
     MX_SPI5_Init();
     MX_DMA2D_Init();
-    //MX_I2C3_Init();
     MX_LTDC_Init();
+    PERIF_IO_Init();
+    gui_init();
+    gui_start(QUEUE_GUI_DATA_LENGTH);
+    /* USER CODE END SysInit */
+
+    /* Initialize all configured peripherals */
+
+    //MX_CRC_Init();
+
+    //MX_I2C3_Init();
+
     /* USER CODE BEGIN 2 */
 
     //rtc_init(&gyro_rtc);
-    PERIF_IO_Init();
-
-    gui_init();
-    gui_start(QUEUE_GUI_DATA_LENGTH);
-
 
     /* USER CODE END 2 */
 
@@ -260,11 +260,12 @@ void SystemClock_Config(void)
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
     RCC_OscInitStruct.HSEState       = RCC_HSE_ON;
     RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSE;//Quartz 8 MHz
-    RCC_OscInitStruct.PLL.PLLM       = 8;//Divider by 8 = 1 MHz
-    RCC_OscInitStruct.PLL.PLLN       = 360;//Multiplier by 360 = 360 MHz
-    RCC_OscInitStruct.PLL.PLLP       = RCC_PLLP_DIV2;// Divifer by 2 = 180 MHz = SYSTEM CLOCK
-    RCC_OscInitStruct.PLL.PLLQ       = 7;
+    RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSE; //Quartz 8 MHz
+    RCC_OscInitStruct.PLL.PLLM       = 8;                 //Divider by 8 = 1 MHz
+    RCC_OscInitStruct.PLL.PLLN       = 360; //Multiplier by 360 = 360 MHz
+    RCC_OscInitStruct.PLL.PLLP =
+            RCC_PLLP_DIV2; // Divifer by 2 = 180 MHz = SYSTEM CLOCK
+    RCC_OscInitStruct.PLL.PLLQ = 7;
     HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
     /* Activate the Over-Drive mode */
@@ -274,10 +275,11 @@ void SystemClock_Config(void)
 	     clocks dividers */
     RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK |
                                    RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
-    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;//180 MHz
-    RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;//180 MHz
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;//45MHz Max (SPI2, SPI3)
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;//90 MHz max (SPI1, SPI5, SPI5, SPI6)
+    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK; //180 MHz
+    RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;         //180 MHz
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4; //45MHz Max (SPI2, SPI3)
+    RCC_ClkInitStruct.APB2CLKDivider =
+            RCC_HCLK_DIV2; //90 MHz max (SPI1, SPI5, SPI5, SPI6)
     HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
 }
 

@@ -22,38 +22,34 @@
 #define MAIN_LCD_LAYER        1
 #define MAX_TXT_LINE_LEN      60
 
-#define X_POS_STRING      10
-#define Y_POS_STRING_1    10
-#define Y_POS_STRING_2    30
-#define Y_POS_STRING_3    50
-#define Y_POS_STRING_4    70
-#define Y_POS_STRING_5    90
-#define Y_POS_STRING_MAIN 120
-#define X_BORDER_POS      0
-#define Y_BORDER_POS      ((BSP_LCD_GetYSize() / 2) + 10)
+#define X_POS_STRING   10
+#define Y_POS_STRING_1 10
+#define Y_POS_STRING_2 30
+#define Y_POS_STRING_3 50
+#define Y_POS_STRING_4 70
+#define Y_POS_STRING_5 90
+#define Y_POS_STRING_6 110
+#define X_BORDER_POS   0
+#define Y_BORDER_POS   ((BSP_LCD_GetYSize() / 2))
 
 typedef enum { GUI_OK, GUI_FAIL } gui_status_t;
 
 typedef struct {
-    float yaw_ang;
-    float pitch_ang;
-    float roll_ang;
-    float yaw_vel;
-    float pitch_vel;
-    float roll_vel;
-    float yaw_acc;
-    float pitch_acc;
-    float roll_acc;
-    float raw_angle;
+    float   yaw_ang;
+    float   pitch_ang;
+    float   roll_ang;
+    uint8_t str_ang_changed;
+    float   yaw_vel;
+    float   pitch_vel;
+    float   roll_vel;
+    uint8_t str_vel_changed;
+    float   yaw_acc;
+    float   pitch_acc;
+    float   roll_acc;
+    uint8_t str_acc_changed;
+    float   line_angle;
+    uint8_t line_changed;
 } gui_frame_data_t;
-
-//typedef struct {
-//    float         val_x;
-//    float         val_y;
-//    float         val_z;
-//    uint32_t      timestamp;
-//    data_source_t source;
-//} gui_data_element_t;
 
 /**
  * @brief inits gui
