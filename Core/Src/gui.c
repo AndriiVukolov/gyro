@@ -62,7 +62,7 @@ static void gui_set_compass_line(line_t *ln, uint32_t color, uint32_t len)
 static void gui_draw_compass_line(line_t *ln, gui_frame_data_t *fr)
 {
     if (fr->line_changed != 0) {
-        double angle_radians = fr->line_angle * M_PI / 180.0;
+        double angle_radians = fr->yaw_ang * M_PI / 180.0;
 
         BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
         BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
@@ -81,7 +81,7 @@ static void gui_draw_pitch_val(gui_frame_data_t *fr)
 {
     if (fr->line_changed != 0) {
         uint8_t str_buf[MAX_TXT_LINE_LEN] = { 0 };
-        sprintf((char *)str_buf, "YAW ANGLE: %3.2f", fr->line_angle);
+        sprintf((char *)str_buf, "YAW ANGLE: %3.2f", fr->yaw_ang);
         BSP_LCD_ClearStringLine(Y_POS_STRING_5);
         BSP_LCD_SetFont(&Font16);
         BSP_LCD_SetTextColor(LCD_COLOR_DARKBLUE);

@@ -15,6 +15,7 @@
 
 TaskHandle_t      task_main;
 SemaphoreHandle_t data_put_block = NULL;
+float             cline_angle    = 0;
 
 /**
  * @brief Function pulls data from GYRO queue, and pushes it to GUI queue with additional "source" field
@@ -48,54 +49,62 @@ static servise_status_type_t gyro_get(queue_data_element_t *gelt)
     return res;
 }
 
-static servise_status_type_t angle_calc(queue_data_element_t *in_elt,
-                                        queue_data_element_t *out_elt)
+static servise_status_type_t tilt_angle_calc(queue_data_element_t *in_elt,
+                                             queue_data_element_t *out_elt)
 {
 
-    float x        = in_elt->val_x;
-    float y        = in_elt->val_y;
-    float z        = in_elt->val_z;
-    out_elt->val_x = (180 / M_PI) * acos(x / sqrt(z * z + x * x));
-    out_elt->val_y = (180 / M_PI) * acos(y / sqrt(x * x + y * y));
-    out_elt->val_z = (180 / M_PI) * acos(z / sqrt(z * z + y * y));
-
+    if ((in_elt->val_x == 0) && (in_elt->val_y == 0) && (in_elt->val_z == 0))
+        return SENSOR_FAIL;
+    else {
+        float x        = in_elt->val_x;
+        float y        = in_elt->val_y;
+        float z        = in_elt->val_z;
+        out_elt->val_x = (180 / M_PI) * acos(x / sqrt(z * z + x * x));
+        out_elt->val_y = (180 / M_PI) * acos(y / sqrt(x * x + y * y));
+        out_elt->val_z = (180 / M_PI) * acos(z / sqrt(z * z + y * y));
+    }
     return STATUS_OK;
 }
+static float yaw_angle_calc(queue_data_element_t *gyro_elt)
+{
+    static float angle = 0;
+    angle              = gyro_elt->val_x * TASK_TIMEOUT / 1000;
+    return angle;
+}
 
-static servise_status_type_t gui_data_transfer(void)
+static servise_status_type_t
+gui_data_transfer(queue_data_element_t *gyro_elt_in,
+                  queue_data_element_t *accel_elt_in,
+                  queue_data_element_t *angle_elt)
+
 {
     servise_status_type_t stat;
-    BaseType_t            op_status    = pdFAIL;
-    gui_frame_data_t      elt_out      = { 0 };
-    queue_data_element_t  accel_elt_in = { 0 };
-    queue_data_element_t  gyro_elt_in  = { 0 };
-    queue_data_element_t  angle_elt    = { 0 };
+    BaseType_t            op_status = pdFAIL;
+    gui_frame_data_t      elt_out   = { 0 };
+
     //get data from gyro queue and place it to buffer gyro_elt_in
-    stat = gyro_get(&gyro_elt_in);
-    if (stat == STATUS_OK) {
-        elt_out.pitch_vel  = gyro_elt_in.val_x;
-        elt_out.roll_vel   = gyro_elt_in.val_y;
-        elt_out.yaw_vel    = gyro_elt_in.val_z;
-        elt_out.line_angle = (float)gyro_elt_in.timestamp / 100;
-    }
+
+    elt_out.pitch_vel  = gyro_elt_in->val_x;
+    elt_out.roll_vel   = gyro_elt_in->val_y;
+    elt_out.yaw_vel    = gyro_elt_in->val_z;
+    elt_out.line_angle = (float)gyro_elt_in->timestamp / 100;
+
     //get data from accel queue and place it to buffer accel_elt_in
-    stat |= accel_get(&accel_elt_in);
-    if (stat == STATUS_OK) {
-        elt_out.pitch_acc  = accel_elt_in.val_x / 100;
-        elt_out.roll_acc   = accel_elt_in.val_y / 100;
-        elt_out.yaw_acc    = accel_elt_in.val_z / 100;
-        elt_out.line_angle = (float)accel_elt_in.timestamp / 100;
-    }
+
+    elt_out.pitch_acc  = accel_elt_in->val_x / 100;
+    elt_out.roll_acc   = accel_elt_in->val_y / 100;
+    elt_out.yaw_acc    = accel_elt_in->val_z / 100;
+    elt_out.line_angle = (float)accel_elt_in->timestamp / 100;
+
     //calculate
-    stat |= angle_calc(&accel_elt_in, &angle_elt);
-    if (stat == STATUS_OK) {
-        elt_out.pitch_ang = angle_elt.val_x;
-        elt_out.roll_ang  = angle_elt.val_y;
-        elt_out.yaw_ang   = angle_elt.val_z;
-    }
+
+    elt_out.pitch_ang = angle_elt->val_x;
+    elt_out.roll_ang  = angle_elt->val_y;
+    elt_out.yaw_ang   = angle_elt->val_z;
+
     //put frame with prepared data to GUI queue
-    if (stat == STATUS_OK)
-        op_status = gui_queue_data_put(&elt_out);
+
+    op_status = gui_queue_data_put(&elt_out);
     if (op_status != pdFAIL)
         stat = STATUS_OK;
     return stat;
@@ -103,13 +112,20 @@ static servise_status_type_t gui_data_transfer(void)
 
 static void func_main(void *argument)
 {
-    servise_status_type_t stat = STATUS_OK;
-    data_put_block             = xSemaphoreCreateMutex();
+    servise_status_type_t stat      = STATUS_OK;
+    queue_data_element_t  gyro_elt  = { 0 };
+    queue_data_element_t  accel_elt = { 0 };
+    queue_data_element_t  angle_elt = { 0 };
+    static float          yaw_angle = 0;
 
     while (1) {
         red_led_toggle();
-
-        stat = gui_data_transfer();
+        stat = gyro_get(&gyro_elt);
+        stat |= accel_get(&accel_elt);
+        stat |= tilt_angle_calc(&accel_elt, &angle_elt);
+        yaw_angle += yaw_angle_calc(&gyro_elt);
+        angle_elt.val_z = yaw_angle;
+        stat |= gui_data_transfer(&gyro_elt, &accel_elt, &angle_elt);
 
         if (stat != STATUS_OK) {
             NOTE_ERROR("Can`t save GUI data to queue;");

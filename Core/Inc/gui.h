@@ -17,7 +17,7 @@
 #define MANE_STRING_COLOR     LCD_COLOR_DARKBLUE
 #define BACKGROUND_COLOR      LCD_COLOR_WHITE
 #define QUEUE_GUI_DATA_LENGTH 10
-#define FRAME_PERIOD          150
+#define FRAME_PERIOD          50
 #define QUEUE_GUI_TIMEOUT     100
 #define MAIN_LCD_LAYER        1
 #define MAX_TXT_LINE_LEN      60
