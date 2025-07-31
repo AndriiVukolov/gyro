@@ -68,7 +68,9 @@ static servise_status_type_t tilt_angle_calc(queue_data_element_t *in_elt,
 static float yaw_angle_calc(queue_data_element_t *gyro_elt)
 {
     static float angle = 0;
-    angle              = gyro_elt->val_x * TASK_TIMEOUT / 1000;
+    float        v     = gyro_elt->val_x;
+    if ((v > GYRO_NORMAL_ERROR) || (v < (-GYRO_NORMAL_ERROR)))
+        angle += v * TASK_TIMEOUT / configTICK_RATE_HZ;
     return angle;
 }
 
@@ -87,14 +89,14 @@ gui_data_transfer(queue_data_element_t *gyro_elt_in,
     elt_out.pitch_vel  = gyro_elt_in->val_x;
     elt_out.roll_vel   = gyro_elt_in->val_y;
     elt_out.yaw_vel    = gyro_elt_in->val_z;
-    elt_out.line_angle = (float)gyro_elt_in->timestamp / 100;
+    elt_out.line_angle = (float)gyro_elt_in->timestamp;
 
     //get data from accel queue and place it to buffer accel_elt_in
 
     elt_out.pitch_acc  = accel_elt_in->val_x / 100;
     elt_out.roll_acc   = accel_elt_in->val_y / 100;
     elt_out.yaw_acc    = accel_elt_in->val_z / 100;
-    elt_out.line_angle = (float)accel_elt_in->timestamp / 100;
+    elt_out.line_angle = (float)accel_elt_in->timestamp;
 
     //calculate
 
@@ -116,15 +118,13 @@ static void func_main(void *argument)
     queue_data_element_t  gyro_elt  = { 0 };
     queue_data_element_t  accel_elt = { 0 };
     queue_data_element_t  angle_elt = { 0 };
-    static float          yaw_angle = 0;
 
     while (1) {
         red_led_toggle();
         stat = gyro_get(&gyro_elt);
         stat |= accel_get(&accel_elt);
         stat |= tilt_angle_calc(&accel_elt, &angle_elt);
-        yaw_angle += yaw_angle_calc(&gyro_elt);
-        angle_elt.val_z = yaw_angle;
+        angle_elt.val_x = yaw_angle_calc(&gyro_elt);
         stat |= gui_data_transfer(&gyro_elt, &accel_elt, &angle_elt);
 
         if (stat != STATUS_OK) {

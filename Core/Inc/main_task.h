@@ -15,7 +15,8 @@
 #include "sensor_service.h"
 #include "gui.h"
 
-#define TASK_TIMEOUT (TickType_t)100
+#define TASK_TIMEOUT      (TickType_t)10
+#define GYRO_NORMAL_ERROR 0.8
 
 BaseType_t func_main_start(void);
 
