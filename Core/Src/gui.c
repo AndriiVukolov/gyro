@@ -18,58 +18,69 @@ static QueueHandle_t queue_gui; //queue of data to be displayed
 //static gui_frame_data_t gui_frame_data = { 0 };
 
 typedef struct {
-    uint32_t coord_x;
-    uint32_t coord_y;
-    uint32_t color;
-} pixel_t;
-
-typedef struct {
     uint32_t x1;
     uint32_t y1;
     uint32_t x2;
     uint32_t y2;
-    uint32_t len;
+    uint32_t x3;
+    uint32_t y3;
     uint32_t color;
-} line_t;
+} compass_line_t;
 
-typedef struct {
-    uint32_t s_x; //Coordinate x of begin
-    uint32_t s_y; //Coordinate y of begin
-    uint32_t lng; //length of vector
-    uint32_t deg; //angle between north direction and vector direction (0 - 359 deg)
-} vector_t;
-
-line_t           compass_line = { 0 }; //
+compass_line_t   compass_line = { 0 }; //
 gui_frame_data_t frame_prev   = { 0 };
 gui_frame_data_t frame        = { 0 };
 /**
  * @brief Set params of line to be drawn
  * */
-static void gui_set_compass_line(line_t *ln, uint32_t color, uint32_t len)
+//static void gui_set_compass_line(line_t *ln, uint32_t color, uint32_t len)
+//{
+//    ln->x1    = BSP_LCD_GetXSize() / 2;
+//    ln->y1    = BSP_LCD_GetYSize() / 2 + BSP_LCD_GetYSize() / 4;
+//    ln->len   = len;
+//    ln->x2    = ln->x1 + ln->len;
+//    ln->y2    = ln->y1;
+//    ln->color = color;
+//}
+
+static void gui_set_compass_line(compass_line_t *ln, uint32_t color)
 {
-    ln->x1    = BSP_LCD_GetXSize() / 2;
-    ln->y1    = BSP_LCD_GetYSize() / 2 + BSP_LCD_GetYSize() / 4;
-    ln->len   = len;
-    ln->x2    = ln->x1 + ln->len;
-    ln->y2    = ln->y1;
     ln->color = color;
+    ln->x1    = LINE_FIXED_X - CIRCLE_RADIUS;
+    ln->y1    = LINE_FIXED_Y;
+    ln->x2    = LINE_FIXED_X + CIRCLE_RADIUS;
+    ln->y2    = LINE_FIXED_Y;
+    ln->x3    = LINE_FIXED_X;
+    ln->y3    = LINE_FIXED_Y + LINE_LENGTH;
 }
 
 /**
  * @brief Draws line at the center of bottom of lcd turned in
  * @param degrees - angle degrees between the line the nord direction
  * */
-static void gui_draw_compass_line(line_t *ln, gui_frame_data_t *fr)
+static void gui_draw_compass_line(compass_line_t *ln, gui_frame_data_t *fr)
 {
     if (fr->line_changed != 0) {
         double angle_radians = fr->yaw_ang * M_PI / 180.0;
 
         BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-        BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
-        ln->x2 = ln->x1 + (ln->len * sin(angle_radians));
-        ln->y2 = ln->y1 + (ln->len * cos(angle_radians));
+        BSP_LCD_FillRect(X_BORDER_POS,
+                         (Y_BORDER_POS + 1),
+                         BSP_LCD_GetXSize(),
+                         (BSP_LCD_GetYSize() / 2));
+
         BSP_LCD_SetTextColor(ln->color);
-        BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
+        BSP_LCD_FillCircle(
+                (BSP_LCD_GetXSize() / 2),
+                ((BSP_LCD_GetYSize() / 2) + (BSP_LCD_GetYSize() / 4)),
+                CIRCLE_RADIUS);
+        ln->x1 = LINE_FIXED_X + (CIRCLE_RADIUS * sin(angle_radians - M_PI / 2));
+        ln->x2 = LINE_FIXED_X + (CIRCLE_RADIUS * sin(angle_radians + M_PI / 2));
+        ln->x3 = LINE_FIXED_X + (LINE_LENGTH * sin(angle_radians));
+        ln->y1 = LINE_FIXED_Y + (CIRCLE_RADIUS * cos(angle_radians - M_PI / 2));
+        ln->y2 = LINE_FIXED_Y + (CIRCLE_RADIUS * cos(angle_radians + M_PI / 2));
+        ln->y3 = LINE_FIXED_Y + (LINE_LENGTH * cos(angle_radians));
+        BSP_LCD_FillTriangle(ln->x1, ln->x2, ln->x3, ln->y1, ln->y2, ln->y3);
     }
 }
 
@@ -81,8 +92,8 @@ static void gui_draw_yaw_val(gui_frame_data_t *fr)
 {
     if (fr->line_changed != 0) {
         uint8_t str_buf[MAX_TXT_LINE_LEN] = { 0 };
-        sprintf((char *)str_buf, "YAW ANGLE: %.2f", fr->yaw_ang);
-        BSP_LCD_ClearStringLine(Y_POS_STRING_5);
+        sprintf((char *)str_buf, "YAW ANGLE: %.2f            ", fr->yaw_ang);
+        //BSP_LCD_ClearStringLine(Y_POS_STRING_5);
         BSP_LCD_SetFont(&Font16);
         BSP_LCD_SetTextColor(LCD_COLOR_DARKBLUE);
         BSP_LCD_DisplayStringAt(
@@ -221,7 +232,7 @@ BaseType_t gui_queue_data_put(gui_frame_data_t *element)
     BaseType_t       op_status = pdFAIL;
     gui_frame_data_t dummy     = { 0 };
 
-    op_status = xQueueSend(queue_gui, element, QUEUE_GUI_TIMEOUT);
+    op_status = xQueueSend(queue_gui, element, 0);
     if (op_status != pdPASS) {
         op_status = xQueueReceive(queue_gui, &dummy, 0);
         op_status = xQueueSend(queue_gui, element, 0);
@@ -262,8 +273,11 @@ void gui_init(void)
     BSP_LCD_SetBackColor(BACKGROUND_COLOR);
     BSP_LCD_Clear(BACKGROUND_COLOR);
     /* Set the LCD Text Color */
-    BSP_LCD_SetTextColor(MANE_STRING_COLOR);
-    gui_set_compass_line(&compass_line, LINE_COLOR, LINE_LENGTH);
+    BSP_LCD_SetTextColor(LINE_COLOR);
+    BSP_LCD_FillCircle((BSP_LCD_GetXSize() / 2),
+                       ((BSP_LCD_GetYSize() / 2) + (BSP_LCD_GetYSize() / 4)),
+                       CIRCLE_RADIUS);
+    gui_set_compass_line(&compass_line, LINE_COLOR);
     gui_draw_border();
 }
 

@@ -33,7 +33,7 @@
 #include "usart.h"
 #include "sensor_service.h"
 #include "log_service.h"
-
+#include "gui.h"
 #include "main_task.h"
 //#include "stm32f429i_discovery_lcd.h"
 /* USER CODE END Includes */
@@ -147,6 +147,7 @@ void MX_FREERTOS_Init(void)
             QUEUE_SENSOR_DATA_SIZE);
     success_flag &= read_log_service_start();
     success_flag &= func_main_start(); // success returns >0
+    success_flag &= gui_start(QUEUE_GUI_DATA_LENGTH);
 
     if (success_flag == pdFAIL)
         print("SYSTEM FAIL: unable to create tasks! \r\n");

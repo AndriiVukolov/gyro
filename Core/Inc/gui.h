@@ -13,10 +13,13 @@
 
 #define LINE_LENGTH           60
 #define LINE_COLOR            LCD_COLOR_RED
+#define LINE_FIXED_X          (BSP_LCD_GetXSize() / 2)
+#define LINE_FIXED_Y          (BSP_LCD_GetYSize() / 2 + BSP_LCD_GetYSize() / 4)
+#define CIRCLE_RADIUS         5
 #define VALUES_COLOR          LCD_COLOR_DARKGREEN
 #define MANE_STRING_COLOR     LCD_COLOR_DARKBLUE
 #define BACKGROUND_COLOR      LCD_COLOR_WHITE
-#define QUEUE_GUI_DATA_LENGTH 10
+#define QUEUE_GUI_DATA_LENGTH 20
 #define FRAME_PERIOD          100
 #define QUEUE_GUI_TIMEOUT     100
 #define MAIN_LCD_LAYER        1
