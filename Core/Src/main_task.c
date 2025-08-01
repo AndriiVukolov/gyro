@@ -16,6 +16,7 @@
 TaskHandle_t      task_main;
 SemaphoreHandle_t data_put_block = NULL;
 float             cline_angle    = 0;
+uint8_t           reset_flag     = 0;
 
 /**
  * @brief Function pulls data from GYRO queue, and pushes it to GUI queue with additional "source" field
@@ -68,9 +69,15 @@ static servise_status_type_t tilt_angle_calc(queue_data_element_t *in_elt,
 static float yaw_angle_calc(queue_data_element_t *gyro_elt)
 {
     static float angle = 0;
-    float        v     = gyro_elt->val_x;
-    if ((v > GYRO_NORMAL_ERROR) || (v < (-GYRO_NORMAL_ERROR)))
-        angle += v * TASK_TIMEOUT / configTICK_RATE_HZ;
+    float        v     = gyro_elt->val_z;
+
+    if (reset_flag == 1) {
+        angle      = 0;
+        reset_flag = 0;
+    } else {
+        if ((v > GYRO_NORMAL_ERROR) || (v < (-GYRO_NORMAL_ERROR)))
+            angle -= ((v * TASK_TIMEOUT) / configTICK_RATE_HZ);
+    }
     return angle;
 }
 
@@ -112,25 +119,32 @@ gui_data_transfer(queue_data_element_t *gyro_elt_in,
     return stat;
 }
 
+void main_reset_flag_set(void)
+{
+    reset_flag = 1;
+}
+
 static void func_main(void *argument)
 {
-    servise_status_type_t stat      = STATUS_OK;
-    queue_data_element_t  gyro_elt  = { 0 };
-    queue_data_element_t  accel_elt = { 0 };
-    queue_data_element_t  angle_elt = { 0 };
+    servise_status_type_t stat           = STATUS_OK;
+    queue_data_element_t  gyro_elt       = { 0 };
+    queue_data_element_t  accel_elt      = { 0 };
+    queue_data_element_t  angle_elt      = { 0 };
+    TickType_t            last_wake_time = xTaskGetTickCount();
 
     while (1) {
         red_led_toggle();
         stat = gyro_get(&gyro_elt);
         stat |= accel_get(&accel_elt);
         stat |= tilt_angle_calc(&accel_elt, &angle_elt);
-        angle_elt.val_x = yaw_angle_calc(&gyro_elt);
+        angle_elt.val_z = yaw_angle_calc(&gyro_elt);
         stat |= gui_data_transfer(&gyro_elt, &accel_elt, &angle_elt);
 
         if (stat != STATUS_OK) {
             NOTE_ERROR("Can`t save GUI data to queue;");
         }
-        vTaskDelay(TASK_TIMEOUT);
+
+        vTaskDelayUntil(&last_wake_time, TASK_TIMEOUT);
     }
 }
 BaseType_t func_main_start(void)

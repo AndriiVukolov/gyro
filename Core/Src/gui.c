@@ -62,7 +62,7 @@ static void gui_set_compass_line(line_t *ln, uint32_t color, uint32_t len)
 static void gui_draw_compass_line(line_t *ln, gui_frame_data_t *fr)
 {
     if (fr->line_changed != 0) {
-        double angle_radians = fr->pitch_ang * M_PI / 180.0;
+        double angle_radians = fr->yaw_ang * M_PI / 180.0;
 
         BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
         BSP_LCD_DrawLine(ln->x1, ln->y1, ln->x2, ln->y2);
@@ -77,11 +77,11 @@ static void gui_draw_compass_line(line_t *ln, gui_frame_data_t *fr)
  * @brief Draws text string with angle value of compass line direction
  * @param degrees - angle value to draw
  * */
-static void gui_draw_pitch_val(gui_frame_data_t *fr)
+static void gui_draw_yaw_val(gui_frame_data_t *fr)
 {
     if (fr->line_changed != 0) {
         uint8_t str_buf[MAX_TXT_LINE_LEN] = { 0 };
-        sprintf((char *)str_buf, "PITCH ANGLE: %.2f", fr->pitch_ang);
+        sprintf((char *)str_buf, "YAW ANGLE: %.2f", fr->yaw_ang);
         BSP_LCD_ClearStringLine(Y_POS_STRING_5);
         BSP_LCD_SetFont(&Font16);
         BSP_LCD_SetTextColor(LCD_COLOR_DARKBLUE);
@@ -153,7 +153,7 @@ static servise_status_type_t gui_queue_data_get(gui_frame_data_t *frame)
     BaseType_t op_status   = pdFAIL;
     stat_t     task_status = { 0 };
 
-    op_status = xQueueReceive(queue_gui, frame, QUEUE_GUI_TIMEOUT);
+    op_status = xQueueReceive(queue_gui, frame, 0);
 
     if (op_status != pdPASS) {
         task_status.status = SYSTEM_FAIL;
@@ -234,13 +234,16 @@ static void gui_frame(void *args)
 {
 
     TickType_t last_wake_time;
-    last_wake_time = xTaskGetTickCount();
+    last_wake_time             = xTaskGetTickCount();
+    servise_status_type_t stat = SENSOR_FAIL;
 
     while (1) {
-        gui_queue_data_get(&frame);
-        frame_compare_and_replace(&frame_prev, &frame);
+        stat = gui_queue_data_get(&frame);
+        if (stat == STATUS_OK)
+            frame_compare_and_replace(&frame_prev, &frame);
+
         gui_draw_pry_val(&frame);
-        gui_draw_pitch_val(&frame);
+        gui_draw_yaw_val(&frame);
         gui_draw_compass_line(&compass_line, &frame);
         vTaskDelayUntil(&last_wake_time, FRAME_PERIOD);
     }

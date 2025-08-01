@@ -45,7 +45,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define DEBOUNCE_DELAY 200
+#define DEBOUNCE_DELAY 100
 
 /* USER CODE END PD */
 
@@ -195,7 +195,8 @@ void func_soft_timer(TimerHandle_t x_timer)
 {
     if (x_timer == timer_button_debounce) {
         if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin) == GPIO_PIN_SET)
-            xSemaphoreGive(sem_button_debounce);
+            //xSemaphoreGive(sem_button_debounce);
+            main_reset_flag_set();
         HAL_NVIC_EnableIRQ(BUTTON_EXTI_IRQn);
     }
 
