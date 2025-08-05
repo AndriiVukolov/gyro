@@ -13,7 +13,7 @@
 #include "log_service.h"
 #include "math.h"
 
-TaskHandle_t task_main;
+static TaskHandle_t task_main;
 
 static uint8_t reset_flag = 0;
 
