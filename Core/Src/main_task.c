@@ -13,10 +13,9 @@
 #include "log_service.h"
 #include "math.h"
 
-TaskHandle_t      task_main;
-SemaphoreHandle_t data_put_block = NULL;
-float             cline_angle    = 0;
-uint8_t           reset_flag     = 0;
+TaskHandle_t task_main;
+
+static uint8_t reset_flag = 0;
 
 /**
  * @brief Function pulls data from GYRO queue, and pushes it to GUI queue with additional "source" field
@@ -68,15 +67,18 @@ static servise_status_type_t tilt_angle_calc(queue_data_element_t *in_elt,
 }
 static float yaw_angle_calc(queue_data_element_t *gyro_elt)
 {
-    static float angle = 0;
-    float        v     = gyro_elt->val_z;
+    static float    angle      = 0;
+    static uint32_t time_stamp = 0;
+    float           v          = gyro_elt->val_z;
 
     if (reset_flag == 1) {
         angle      = 0;
         reset_flag = 0;
     } else {
         if ((v > GYRO_NORMAL_ERROR) || (v < (-GYRO_NORMAL_ERROR)))
-            angle -= ((v * TASK_TIMEOUT) / configTICK_RATE_HZ);
+            angle -= (v * (gyro_elt->timestamp - time_stamp) /
+                      1000); //time_stamp in ms
+        time_stamp = gyro_elt->timestamp;
     }
     return angle;
 }
@@ -126,11 +128,10 @@ void main_reset_flag_set(void)
 
 static void func_main(void *argument)
 {
-    servise_status_type_t stat           = STATUS_OK;
-    queue_data_element_t  gyro_elt       = { 0 };
-    queue_data_element_t  accel_elt      = { 0 };
-    queue_data_element_t  angle_elt      = { 0 };
-    TickType_t            last_wake_time = xTaskGetTickCount();
+    servise_status_type_t stat      = STATUS_OK;
+    queue_data_element_t  gyro_elt  = { 0 };
+    queue_data_element_t  accel_elt = { 0 };
+    queue_data_element_t  angle_elt = { 0 };
 
     while (1) {
         red_led_toggle();
@@ -144,7 +145,7 @@ static void func_main(void *argument)
             NOTE_ERROR("Can`t save GUI data to queue;");
         }
 
-        vTaskDelayUntil(&last_wake_time, TASK_TIMEOUT);
+        vTaskDelay(TASK_TIMEOUT);
     }
 }
 BaseType_t func_main_start(void)

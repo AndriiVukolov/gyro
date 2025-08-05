@@ -15,7 +15,6 @@
 
 static TaskHandle_t  task_gui_frame;
 static QueueHandle_t queue_gui; //queue of data to be displayed
-//static gui_frame_data_t gui_frame_data = { 0 };
 
 typedef struct {
     uint32_t x1;
@@ -30,19 +29,10 @@ typedef struct {
 compass_line_t   compass_line = { 0 }; //
 gui_frame_data_t frame_prev   = { 0 };
 gui_frame_data_t frame        = { 0 };
+
 /**
  * @brief Set params of line to be drawn
  * */
-//static void gui_set_compass_line(line_t *ln, uint32_t color, uint32_t len)
-//{
-//    ln->x1    = BSP_LCD_GetXSize() / 2;
-//    ln->y1    = BSP_LCD_GetYSize() / 2 + BSP_LCD_GetYSize() / 4;
-//    ln->len   = len;
-//    ln->x2    = ln->x1 + ln->len;
-//    ln->y2    = ln->y1;
-//    ln->color = color;
-//}
-
 static void gui_set_compass_line(compass_line_t *ln, uint32_t color)
 {
     ln->color = color;
@@ -243,9 +233,6 @@ BaseType_t gui_queue_data_put(gui_frame_data_t *element)
 
 static void gui_frame(void *args)
 {
-
-    TickType_t last_wake_time;
-    last_wake_time             = xTaskGetTickCount();
     servise_status_type_t stat = SENSOR_FAIL;
 
     while (1) {
@@ -256,7 +243,7 @@ static void gui_frame(void *args)
         gui_draw_pry_val(&frame);
         gui_draw_yaw_val(&frame);
         gui_draw_compass_line(&compass_line, &frame);
-        vTaskDelayUntil(&last_wake_time, FRAME_PERIOD);
+        vTaskDelay(TASK_GUI_TIMEOUT);
     }
 }
 

@@ -16,9 +16,9 @@
 #include "gui.h"
 
 #define TASK_TIMEOUT      (TickType_t)250
-#define GYRO_NORMAL_ERROR 0.6
+#define GYRO_NORMAL_ERROR 0.8
 
 BaseType_t func_main_start(void);
-void main_reset_flag_set(void);
+void       main_reset_flag_set(void);
 
 #endif /* INC_MAIN_TASK_H_ */

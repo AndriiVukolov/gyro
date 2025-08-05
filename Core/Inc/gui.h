@@ -22,6 +22,7 @@
 #define QUEUE_GUI_DATA_LENGTH 20
 #define FRAME_PERIOD          100
 #define QUEUE_GUI_TIMEOUT     100
+#define TASK_GUI_TIMEOUT      100
 #define MAIN_LCD_LAYER        1
 #define MAX_TXT_LINE_LEN      60
 

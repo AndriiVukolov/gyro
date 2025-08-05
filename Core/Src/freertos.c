@@ -140,17 +140,24 @@ void MX_FREERTOS_Init(void)
                                NULL,
                                osPriorityIdle,
                                &task_default);
+    if (success_flag == pdFAIL)
+        print("SYSTEM FAIL: unable to create default tasks! \r\n");
 
-    success_flag &= ~sensor_poll_start( //success returns 0
+    success_flag = sensor_poll_start( //success returns 0
             SENSOR_ENABLE,
             SENSOR_ENABLE,
             QUEUE_SENSOR_DATA_SIZE);
-    success_flag &= read_log_service_start();
-    success_flag &= func_main_start(); // success returns >0
-    success_flag &= gui_start(QUEUE_GUI_DATA_LENGTH);
-
+    if (success_flag != STATUS_OK)
+        print("SYSTEM FAIL: unable to create sensor poll tasks! \r\n");
+    success_flag = read_log_service_start();
     if (success_flag == pdFAIL)
-        print("SYSTEM FAIL: unable to create tasks! \r\n");
+        print("SYSTEM FAIL: unable to create read log tasks! \r\n");
+    success_flag = func_main_start(); // success returns >0
+    if (success_flag == pdFAIL)
+        print("SYSTEM FAIL: unable to create main tasks! \r\n");
+    success_flag = gui_start(QUEUE_GUI_DATA_LENGTH);
+    if (success_flag == GUI_FAIL)
+        print("SYSTEM FAIL: unable to create graphic tasks! \r\n");
 
     /* USER CODE END RTOS_THREADS */
 

@@ -19,7 +19,7 @@
 
 #define QUEUE_SENSOR_DATA_SIZE 10
 #define STATUS_POLL_PERIOD     pdMS_TO_TICKS(1000) //ms
-#define SENSOR_POLL_PERIOD     pdMS_TO_TICKS(500)  //ms
+#define SENSOR_POLL_PERIOD     pdMS_TO_TICKS(100)  //ms
 #define PRINT_PERIOD           pdMS_TO_TICKS(1000) //ms
 #define OPTIMAL_STACK_SIZE     512
 #define QUEUE_RECEIVE_TIMEOUT  100
